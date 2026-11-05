@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_blank">
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Barlow:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#eef1f4; --surface:#fff; --ink:#18212b; --muted:#5b6774; --line:#d5dbe2;
+  --navy:#1d3047; --brass:#b5821f; --brass-soft:#f3e6c9; --good:#2f7d4f; --good-soft:#dcefe3;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-read:"Source Serif 4",Georgia,serif;
+  --f-ui:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#10161d; --surface:#18212b; --ink:#e7ebef; --muted:#9aa6b2; --line:#2a3542;
+  --navy:#0b121a; --brass:#e0ad48; --brass-soft:#3a2f17; --good:#5cc489; --good-soft:#173826; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:16px;line-height:1.5}
+.wrap{max-width:720px;margin:0 auto;padding:0 16px}
+a{color:var(--brass)}
+button,select{font:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
+
+.board{background:var(--navy);color:#eef2f6;padding:20px 0 22px}
+.board .wrap{display:grid;gap:14px}
+.brand{display:flex;align-items:center;gap:14px}
+.brand img{width:56px;height:56px;border-radius:13px;flex:none;box-shadow:0 0 0 1px rgba(255,255,255,.12)}
+.eyebrow{font-family:var(--f-display);text-transform:uppercase;letter-spacing:.12em;font-size:.82rem;color:#d9b061;font-weight:600}
+h1{margin:0;font-family:var(--f-display);font-weight:700;font-size:clamp(1.9rem,6vw,2.6rem);line-height:1}
+.today-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;font-family:var(--f-display);font-size:1.1rem}
+.today-row strong{font-size:1.6rem;color:#f2c96f}
+.bar{height:14px;border-radius:7px;background:rgba(255,255,255,.14);overflow:hidden}
+.bar span{display:block;height:100%;width:0;background:linear-gradient(90deg,#c8922b,#f2c96f);border-radius:7px;transition:width .6s}
+.labels,.roster li{display:grid;grid-template-columns:1.6rem minmax(0,1fr) auto auto;align-items:center;gap:10px}
+.labels{padding:0 10px;font-size:.7rem;color:#aab6c3;text-transform:uppercase;letter-spacing:.08em}
+.labels .dl{display:flex;gap:4px}.labels .dl span{width:12px;text-align:center}
+.roster{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.roster li{padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.06)}
+.roster li.me{background:rgba(242,201,111,.18)}
+.rank{font-family:var(--f-display);font-weight:700;color:#d9b061;text-align:center}
+.who{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.who .chip{display:inline-block;margin-left:8px;font-size:.72rem;font-weight:600;padding:1px 8px;border-radius:10px;vertical-align:1px}
+.chip.in{background:#5cc489;color:#0d2a19}
+.chip.out{background:rgba(255,255,255,.12);color:#c0cad4}
+.dots{display:flex;gap:4px}
+.dot{width:12px;height:12px;border-radius:50%;background:rgba(255,255,255,.16)}
+.dot.on{background:#5cc489}.dot.today{box-shadow:0 0 0 2px #f2c96f}
+.dot.future{background:transparent;border:1px dashed rgba(255,255,255,.25)}
+.streak{font-family:var(--f-display);color:#f2c96f;min-width:3.2rem;text-align:right}
+.board .note{color:#c0cad4;font-size:.95rem;margin:0}
+
+main{padding:20px 0 48px}
+.whoami{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding:14px;border-radius:12px;background:var(--surface);border:1px solid var(--line)}
+.whoami label{font-weight:600}
+.whoami select{flex:1;min-width:180px;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.whoami.set{padding:8px 14px;justify-content:space-between}
+.linkbtn{background:none;border:0;color:var(--brass);text-decoration:underline;padding:0}
+.nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.nav button{background:var(--surface);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 12px;font-weight:600}
+.nav button:disabled{opacity:.35;cursor:default}
+.nav .date{font-family:var(--f-display);font-size:1.15rem;letter-spacing:.04em;text-transform:uppercase;text-align:center}
+.nav .date small{display:block;font-family:var(--f-ui);font-size:.75rem;color:var(--muted);text-transform:none;letter-spacing:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.tag{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 20px;background:var(--brass-soft);font-size:.88rem}
+.tag b{font-family:var(--f-display);text-transform:uppercase;letter-spacing:.08em;font-size:.82rem}
+.body{padding:22px 20px 8px;display:grid;gap:16px}
+h2{margin:0;font-family:var(--f-display);font-size:clamp(1.6rem,5vw,2.1rem);line-height:1.05}
+.read{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;border:1px dashed var(--brass);border-radius:10px}
+.lbl{font-family:var(--f-display);text-transform:uppercase;letter-spacing:.1em;font-size:.8rem;color:var(--muted)}
+.read a{font-family:var(--f-read);font-weight:600;font-size:1.1rem;text-decoration:none}
+.thought{font-family:var(--f-read);font-size:1.12rem;line-height:1.65;margin:0}
+.ponder{border-left:4px solid var(--brass);padding:4px 0 4px 14px}
+.ponder .lbl{color:var(--brass);font-weight:600}
+.ponder p{margin:2px 0 0;font-family:var(--f-read);font-style:italic;font-size:1.1rem}
+.foot{padding:16px 20px 22px;display:grid;gap:12px;border-top:1px solid var(--line);margin-top:10px}
+.foot label{font-size:.9rem;color:var(--muted)}
+textarea{width:100%;min-height:64px;border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;background:var(--bg);color:var(--ink)}
+.confirm{border:0;border-radius:10px;padding:14px 18px;background:var(--brass);color:#1a1205;font-family:var(--f-display);font-weight:700;font-size:1.25rem;letter-spacing:.05em;text-transform:uppercase}
+.confirm:disabled{opacity:.6;cursor:default}
+.done{padding:14px 16px;border-radius:10px;background:var(--good-soft);color:var(--good);font-weight:600}
+.small{font-size:.85rem;color:var(--muted);margin:0}
+.err{color:#c0392b;font-size:.9rem;margin:0}
+.loading{padding:40px 20px;text-align:center;color:var(--muted)}
+.foot-links{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;padding:0 16px 32px;font-size:.88rem}
+.alt{padding:20px 16px 40px;display:grid;gap:16px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:12px}
+.panel h3{margin:0;font-family:var(--f-display);font-size:1.35rem}
+.field{display:grid;gap:6px}.field label{font-weight:600;font-size:.92rem}
+.field input,.field textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--bg);color:var(--ink)}
+.row2{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.row2 input{flex:1;min-width:160px}
+.btn2{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:8px 14px;font-weight:600}
+.btn2.danger{color:#c0392b}
+.codebig{font-family:var(--f-display);font-size:2rem;letter-spacing:.12em;color:var(--brass);font-weight:700}
+.grid{overflow-x:auto}.grid table{border-collapse:collapse;width:100%;font-size:.9rem}
+.grid th,.grid td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:center}
+.grid th:first-child,.grid td:first-child{text-align:left}
+.grid .y{color:var(--good);font-weight:700}.grid .n{color:#c0392b}
+.resp{border-top:1px solid var(--line);padding-top:10px}
+.resp .meta{font-size:.82rem;color:var(--muted)}.resp p{margin:4px 0 0;font-family:var(--f-read)}
+.row2 input,.panel select{padding:9px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--bg);color:var(--ink)}
+.hero{text-align:center;display:grid;justify-items:center;gap:8px;padding:8px 8px 4px}
+.hero img{width:96px;height:96px;border-radius:22px;box-shadow:0 6px 20px rgba(0,0,0,.18)}
+.hero h2{margin:4px 0 0;font-family:var(--f-display);font-size:2rem}
+.mission{margin:0;max-width:34ch;font-family:var(--f-read);font-size:1.08rem;line-height:1.55;color:var(--muted)}
+.guide{margin:0;padding-left:20px;display:grid;gap:10px}.guide p,.faq p{margin:2px 0 0}
+.faq{border-top:1px solid var(--line);padding-top:8px}
+.rlist{display:grid;gap:6px}.rlist div{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header class="board">
+  <div class="wrap">
+    <div class="brand"><img src="https://cdn.prod.website-files.com/571e75edbd5a690c420161f4/6ad91704cdda56e5dd879be5_fsy-icon-1024.png" alt="" width="56" height="56"><div><div class="eyebrow" id="eyebrow">Aaronic Priesthood · Daily Prep</div><h1>Ready for Sunday</h1></div></div>
+    <div class="today-row"><span id="todayLabel">Today</span><span><strong id="todayCount">–</strong> in today</span></div>
+    <div class="bar"><span id="todayBar"></span></div>
+    <div class="labels" id="labels"></div>
+    <ol class="roster" id="roster"></ol>
+    <p class="note" id="boardNote">Loading the quorum…</p>
+  </div>
+</header>
+<main class="wrap">
+  <div id="whoami"></div>
+  <div class="nav">
+    <button id="prev">‹ Prev</button>
+    <div class="date" id="navDate"></div>
+    <button id="next">Next ›</button>
+  </div>
+  <article class="card" id="card"><div class="loading">Loading today's reading…</div></article>
+</main>
+<section class="wrap alt" id="alt" hidden></section>
+<nav class="foot-links" id="footLinks">
+  <button class="linkbtn" id="lnkCode" type="button">Enter a ward code</button>
+  <button class="linkbtn" id="lnkLeader" type="button">Leaders</button>
+  <button class="linkbtn" id="lnkSetup" type="button">Set up a new ward</button>
+</nav>
+<p class="small" style="text-align:center;padding:0 16px 28px;margin:-18px 0 0">Not an official app of The Church of Jesus Christ of Latter-day Saints.</p>
+
+<script>
+var WARD_PARAM = <?!= JSON.stringify(wardParam) ?>;
+var NAME_PARAM = <?!= JSON.stringify(nameParam) ?>;
+var INVITE_PARAM = <?!= JSON.stringify(inviteParam) ?>;
+var LEADER_PARAM = <?!= JSON.stringify(leaderParam) ?>;
+var APP_URL = <?!= JSON.stringify(appUrl) ?>;
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v);}catch(e){}return null;}
+var WARD = WARD_PARAM || ls("fsy-ward") || "";
+if (WARD_PARAM) ls("fsy-ward", WARD_PARAM);
+function nameKey(){return WARD ? "fsy-name-"+WARD : "fsy-name";}
+if (LEADER_PARAM) ls("fsy-leader", LEADER_PARAM);
+var INVITE = INVITE_PARAM || ls("fsy-invite") || "";
+if (INVITE_PARAM) ls("fsy-invite", INVITE_PARAM);
+var D=null, me=ls(nameKey()), viewing=null, saving=false, errMsg="";
+var LEGACY = !WARD && !INVITE && !!ls("fsy-name");
+function tellParent(){try{window.top.postMessage({fsy:{i:INVITE,w:WARD,n:me||""}},"*");}catch(e){}}
+var FALLBACK={title:"Today's reading is on its way",ref:"This month's For the Strength of Youth",
+  refUrl:"https://www.churchofjesuschrist.org/study/magazines/for-the-strength-of-youth?lang=eng",
+  thought:"The daily reading for today hasn't been posted yet. Open this month's magazine, read the Sunday lesson for this week or any article that catches your eye, and spend a couple of minutes thinking about it.",
+  ask:"What is one thing you read today that you could bring to Sunday's discussion?",lesson:"",lessonUrl:""};
+
+function parse(s){var p=s.split("-").map(Number);return new Date(p[0],p[1]-1,p[2]);}
+function iso(d){return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2);}
+function shift(s,n){var d=parse(s);d.setDate(d.getDate()+n);return iso(d);}
+function fmt(s,o){return parse(s).toLocaleDateString(undefined,o);}
+function sundayFor(s){var d=parse(s);d.setDate(d.getDate()+(7-d.getDay())%7);return iso(d);}
+function weekOf(s){var sun=sundayFor(s),a=[];for(var i=6;i>=0;i--)a.push(shift(sun,-i));return a;}
+function el(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;}
+
+function daysFor(name){var o={};D.checkins.forEach(function(c){if(c.name===name)o[c.date]=1;});return o;}
+function streak(days){var d=D.today;if(!days[d])d=shift(d,-1);var n=0;while(days[d]){n++;d=shift(d,-1);}return n;}
+
+function renderBoard(){
+  var wk=weekOf(D.today), today=D.today;
+  var rows=D.roster.map(function(n){var days=daysFor(n);return{name:n,days:days,week:wk.filter(function(d){return days[d];}).length,streak:streak(days),today:!!days[today]};})
+    .sort(function(a,b){return b.week-a.week||b.streak-a.streak||a.name.localeCompare(b.name);});
+  var done=rows.filter(function(r){return r.today;}).length;
+  document.getElementById("todayLabel").textContent=fmt(today,{weekday:"long",month:"short",day:"numeric"});
+  document.getElementById("todayCount").textContent=done+" of "+rows.length;
+  document.getElementById("todayBar").style.width=(rows.length?Math.round(done/rows.length*100):0)+"%";
+  var labels=document.getElementById("labels");
+  labels.innerHTML='<span></span><span></span><span class="dl">'+wk.map(function(d){return"<span>"+fmt(d,{weekday:"narrow"})+"</span>";}).join("")+'</span><span class="streak" style="color:inherit">Streak</span>';
+  labels.hidden=!rows.length;
+  var ol=document.getElementById("roster");ol.innerHTML="";
+  rows.forEach(function(r,i){
+    var li=el("li",r.name===me?"me":"");
+    li.appendChild(el("span","rank",String(i+1)));
+    var who=el("span","who",r.name);
+    who.appendChild(el("span","chip "+(r.today?"in":"out"),r.today?"Done today":"Not yet"));
+    li.appendChild(who);
+    var dots=el("span","dots");
+    wk.forEach(function(d){var s=el("span","dot"+(r.days[d]?" on":"")+(d===today?" today":"")+(d>today?" future":""));s.title=fmt(d,{weekday:"short",month:"short",day:"numeric"});dots.appendChild(s);});
+    li.appendChild(dots);
+    li.appendChild(el("span","streak",r.streak?r.streak+(r.streak>1?" days":" day"):"–"));
+    ol.appendChild(li);
+  });
+  var note=document.getElementById("boardNote");
+  note.hidden=rows.length>0;
+  note.textContent="No names on the roster yet. Your leader can add them in the Leaders section below.";
+}
+
+function renderWho(){
+  var box=document.getElementById("whoami");box.innerHTML="";
+  if(INVITE&&D.me){
+    box.className="whoami set";
+    box.appendChild(el("span",null,"Checking in as "+D.me));
+    var rb=el("button","btn2","Get reminders");rb.type="button";
+    rb.onclick=function(){try{window.top.postMessage({fsy:{askReminders:true}},"*");}catch(e){}};
+    box.appendChild(rb);
+    return;
+  }
+  if(me&&D.roster.indexOf(me)>=0){
+    box.className="whoami set";
+    box.appendChild(el("span",null,"Checking in as "+me));
+    var b=el("button","linkbtn","Not you?");b.onclick=function(){me=null;try{localStorage.removeItem(nameKey());}catch(e){}renderAll();};
+    box.appendChild(b);return;
+  }
+  box.className="whoami";
+  var l=el("label",null,"Who are you?");l.htmlFor="namePick";box.appendChild(l);
+  var s=el("select");s.id="namePick";
+  s.appendChild(new Option("Pick your name",""));
+  D.roster.forEach(function(n){s.appendChild(new Option(n,n));});
+  s.onchange=function(){if(!s.value)return;me=s.value;try{localStorage.setItem(nameKey(),me);}catch(e){}tellParent();renderAll();};
+  box.appendChild(s);
+}
+
+function renderCard(){
+  var first=D.readings.length?D.readings[0].date:D.today, last=D.readings.length?D.readings[D.readings.length-1].date:D.today;
+  document.getElementById("navDate").innerHTML=fmt(viewing,{weekday:"long",month:"short",day:"numeric"})+"<small>"+(viewing===D.today?"Today's reading":viewing<D.today?"Past reading":"Coming up")+"</small>";
+  document.getElementById("prev").disabled=viewing<=first;
+  document.getElementById("next").disabled=viewing>=last&&viewing>=D.today;
+  var card=document.getElementById("card");card.innerHTML="";
+  var r=null;D.readings.forEach(function(x){if(x.date===viewing)r=x;});
+  if(!r&&viewing===D.today)r=FALLBACK;
+  if(!r){card.appendChild(el("div","loading","No reading is set for this day yet. New readings get added each month."));return;}
+  var isSun=parse(viewing).getDay()===0;
+  var tag=el("div","tag");
+  var t1=el("span");t1.appendChild(el("b",null,"Preparing for "));t1.appendChild(document.createTextNode(isSun?"today":fmt(sundayFor(viewing),{weekday:"long",month:"short",day:"numeric"})));
+  tag.appendChild(t1);tag.appendChild(el("span",null,r.lesson||""));card.appendChild(tag);
+  var body=el("div","body");
+  body.appendChild(el("h2",null,r.title));
+  var rd=el("div","read");rd.appendChild(el("span","lbl","Read"));var a=el("a",null,r.ref);a.href=r.refUrl;rd.appendChild(a);body.appendChild(rd);
+  body.appendChild(el("p","thought",r.thought));
+  var p=el("div","ponder");p.appendChild(el("span","lbl",isSun?"Bring to class":"Think about"));p.appendChild(el("p",null,r.ask));body.appendChild(p);
+  if(r.lessonUrl){var la=el("a",null,"See Sunday's lesson in the magazine →");la.href=r.lessonUrl;la.style.fontSize=".88rem";body.appendChild(la);}
+  card.appendChild(body);
+  var foot=el("div","foot");card.appendChild(foot);
+  var mine=me?daysFor(me):{};
+  if(mine[viewing]){foot.appendChild(el("div","done","✓ Checked in "+(viewing===D.today?"today":"for this day")+". See you Sunday."));return;}
+  if(viewing!==D.today){foot.appendChild(el("p","small",viewing<D.today?"Check-ins count on the day of the reading. Today's reading is waiting for you.":"This reading opens on "+fmt(viewing,{weekday:"long"})+"."));return;}
+  if(!me){foot.appendChild(el("p","small","Pick your name at the top so your check-in counts."));return;}
+  var lab=el("label",null,"What stood out to you, or what will you bring Sunday? (required, your adviser can see this)");lab.htmlFor="thoughtInput";foot.appendChild(lab);
+  var ta=el("textarea");ta.id="thoughtInput";ta.maxLength=400;ta.placeholder="One or two sentences...";foot.appendChild(ta);
+  try{var dr=localStorage.getItem("fsy-draft-"+D.today);if(dr)ta.value=dr;}catch(e){}
+  var hint=el("p","small","");foot.appendChild(hint);
+  var btn=el("button","confirm",saving?"Saving…":"I read it and thought about it");foot.appendChild(btn);
+  function gate(){var n=ta.value.trim().length;btn.disabled=saving||n<15;hint.textContent=n<15?"Write at least a sentence to check in.":"";try{localStorage.setItem("fsy-draft-"+D.today,ta.value);}catch(e){}}
+  ta.oninput=gate;gate();
+  if(errMsg)foot.appendChild(el("p","err",errMsg));
+  btn.onclick=function(){
+    saving=true;errMsg="";btn.disabled=true;btn.textContent="Saving…";
+    google.script.run
+      .withSuccessHandler(function(data){try{localStorage.removeItem("fsy-draft-"+D.today);}catch(x){}D=data;saving=false;renderAll();})
+      .withFailureHandler(function(e){saving=false;errMsg=(e&&e.message)||"That didn't save. Check your connection and try again.";renderAll();})
+      .checkIn(WARD,me,ta.value,INVITE,LEGACY);
+  };
+}
+
+function renderAll(){
+  document.getElementById("eyebrow").textContent = D.ward && !D.ward.isDefault ? D.ward.name+" · Daily Prep" : "Aaronic Priesthood · Daily Prep";
+  if(INVITE&&D.me){me=D.me;}
+  if(!me&&NAME_PARAM&&D.roster.indexOf(NAME_PARAM)>=0){me=NAME_PARAM;ls(nameKey(),me);}
+  if(!me){var old=ls("fsy-name");if(WARD&&old&&D.roster.indexOf(old)>=0){me=old;ls(nameKey(),me);}}
+  tellParent();
+  renderBoard();renderWho();renderCard();
+}
+document.getElementById("prev").onclick=function(){viewing=shift(viewing,-1);renderCard();};
+document.getElementById("next").onclick=function(){viewing=shift(viewing,1);renderCard();};
+
+/* ---------- views: app, ward code, leader, setup ---------- */
+var appEls=[document.querySelector("header.board"),document.querySelector("main")];
+var alt=document.getElementById("alt");
+function showApp(){alt.hidden=true;alt.innerHTML="";appEls.forEach(function(x){x.hidden=false;});}
+function showAlt(){appEls.forEach(function(x){x.hidden=true;});alt.hidden=false;alt.innerHTML="";window.scrollTo(0,0);return alt;}
+function backBtn(){var b=el("button","linkbtn",D?"‹ Back to today's reading":"‹ Back");b.type="button";b.onclick=function(){if(D){showApp();}else{loadApp();}};return b;}
+function panel(title){var p=el("div","panel");if(title)p.appendChild(el("h3",null,title));return p;}
+function field(label,id,tag,ph){var f=el("div","field");var l=el("label",null,label);l.htmlFor=id;var i=el(tag||"input");i.id=id;if(ph)i.placeholder=ph;f.appendChild(l);f.appendChild(i);return {wrap:f,input:i};}
+function errLine(){return el("p","err","");}
+function copyRow(value){
+  var r=el("div","row2");var i=el("input");i.readOnly=true;i.value=value;i.onclick=function(){i.select();};
+  var b=el("button","btn2","Copy");b.type="button";
+  b.onclick=function(){
+    function done(){b.textContent="Copied";setTimeout(function(){b.textContent="Copy";},1500);}
+    try{navigator.clipboard.writeText(value).then(done,function(){i.select();});}catch(e){i.select();}
+  };
+  r.appendChild(i);r.appendChild(b);return r;
+}
+function copyOrShow(btn,msg,after){
+  function show(){
+    btn.textContent="Copy link";
+    var box=el("textarea");box.readOnly=true;box.value=msg;box.rows=3;box.style.width="100%";
+    var wrap=el("div");wrap.appendChild(el("p","small","Your phone blocked copying here. Press and hold the text below, then tap Select All and Copy."));wrap.appendChild(box);
+    (after||btn).after(wrap);box.focus();box.select();
+  }
+  try{
+    navigator.clipboard.writeText(msg).then(function(){btn.textContent="Copied";setTimeout(function(){btn.textContent="Copy link";},1500);},show);
+  }catch(e){show();}
+}
+function run(fn,args,ok,fail){
+  var r=google.script.run.withSuccessHandler(ok).withFailureHandler(function(e){fail((e&&e.message)||"Something went wrong. Check your connection and try again.");});
+  r[fn].apply(r,args);
+}
+
+var LOGO="https://cdn.prod.website-files.com/571e75edbd5a690c420161f4/6ad91704cdda56e5dd879be5_fsy-icon-1024.png";
+function showWelcome(msg){
+  var a=showAlt();
+  var hero=el("div","hero");
+  var im=el("img");im.src=LOGO;im.alt="FSY Daily Prep logo";im.width=96;im.height=96;hero.appendChild(im);
+  hero.appendChild(el("h2",null,"FSY Daily Prep"));
+  hero.appendChild(el("p","mission","Helping young men come to Sunday ready. A few minutes each day with the scriptures and the For the Strength of Youth lesson, so every quorum discussion starts with something real to share."));
+  a.appendChild(hero);
+  var p=panel("Young men");
+  p.appendChild(el("p",null,"Open the invite link your leader texted you. It sets this phone up for you, and you never need a password."));
+  if(msg)p.appendChild(el("p","err",msg));
+  var yr=el("div","row2");
+  var b0=el("button","btn2","Lost your link?");b0.type="button";b0.onclick=showLostLink;
+  var b1=el("button","btn2","I have a ward code");b1.type="button";b1.onclick=function(){showCodeView("");};
+  yr.appendChild(b0);yr.appendChild(b1);p.appendChild(yr);
+  a.appendChild(p);
+  var q=panel("Leaders");
+  q.appendChild(el("p",null,"See your young men's responses, send invite links, and get a 6 PM summary of who still needs to check in."));
+  var row=el("div","row2");
+  var b2=el("button","btn2","Leader sign-in");b2.type="button";b2.onclick=showLeaderView;
+  var b3=el("button","btn2","Set up a new ward");b3.type="button";b3.onclick=showSetupView;
+  var b4=el("button","btn2","How it works");b4.type="button";b4.onclick=showGuide;
+  row.appendChild(b2);row.appendChild(b3);row.appendChild(b4);q.appendChild(row);
+  a.appendChild(q);
+}
+function showLostLink(){
+  var a=showAlt();a.appendChild(backBtn());
+  var p=panel("Lost your link?");
+  p.appendChild(el("p",null,"Pick your ward and type your name. Your leaders will get an email and text you your link."));
+  var wf=field("Your ward","lostWard","select");wf.input.appendChild(new Option("Loading wards…",""));p.appendChild(wf.wrap);
+  var nf=field("Your name","lostName","input","First name and last initial");p.appendChild(nf.wrap);
+  var e=errLine();var b=el("button","confirm","Ask my leaders");b.type="button";p.appendChild(b);p.appendChild(e);
+  run("wardList",[],function(list){wf.input.innerHTML="";wf.input.appendChild(new Option("Pick your ward",""));
+    list.forEach(function(w){wf.input.appendChild(new Option(w.name,w.id));});},function(m){e.textContent=m;});
+  b.onclick=function(){
+    if(!wf.input.value){e.textContent="Pick your ward.";return;}
+    if(nf.input.value.trim().length<2){e.textContent="Enter your name.";return;}
+    b.disabled=true;e.textContent="";
+    run("requestInvite",[wf.input.value,nf.input.value],function(r){p.innerHTML="";p.appendChild(el("h3",null,"Request sent"));p.appendChild(el("p",null,r.message));},
+      function(m){b.disabled=false;e.textContent=m;});
+  };
+  a.appendChild(p);
+}
+function showGuide(){
+  var a=showAlt();a.appendChild(backBtn());
+  var p=panel("Setting up FSY Daily Prep for your ward");
+  p.appendChild(el("p",null,"Takes about 10 minutes. You don't need anyone's help once you have the setup PIN."));
+  var steps=[
+    ["Get the setup PIN","Ask the person who shared FSY Daily Prep with you for the 4-digit setup PIN. It keeps strangers from creating wards."],
+    ["Create your ward","Tap Set up a new ward. Enter your ward name, your young men's first names and last initials, your time zone, your name and email, and choose a 4-digit leader PIN. Write down the ward code and PIN it shows you."],
+    ["Send each young man his invite link","In the leader view, tap Copy link next to each name and text it to him. Send it in a group text with a parent or another leader."],
+    ["Add your other leaders","Under Leaders who can see responses, add the bishop, advisers, and anyone else who should see answers. Add an email to get a 6 PM summary. Copy each leader's link and send it to him."],
+    ["Have the young men save it to their phones","On iPhone: open the link in Safari, tap Share, then Add to Home Screen. Open it from the home screen and tap Turn on for reminders. On Android, Chrome offers to install it."],
+    ["Use their answers on Sunday","Open your leader link before class. Responses shows everything they wrote that week. Quote a few (with permission) in your discussion."]
+  ];
+  var ol=el("ol","guide");
+  steps.forEach(function(s){var li=el("li");li.appendChild(el("b",null,s[0]));li.appendChild(el("p",null,s[1]));ol.appendChild(li);});
+  p.appendChild(ol);a.appendChild(p);
+  var f=panel("Good to know");
+  [["Who sees what","Young men see only first names and check marks. Only your ward's leaders see their answers. Other wards can't see yours."],
+   ["Lost phone or shared link","In the leader view, tap New link next to his name. His old link stops working."],
+   ["Leader released","Remove him under Leaders who can see responses. If he knew the PIN, change it under Codes."],
+   ["Forgot the PIN","Tap Forgot your PIN? on the sign-in screen. Every leader with an email gets his personal sign-in link. Then set a new PIN under Codes."],
+   ["A young man got logged out","He taps Lost your link? on the welcome screen and picks his ward. You get an email; text him his link from the leader view."],
+   ["Same PIN for everyone?","Yes, one PIN per ward. But each leader also has his own leader link that signs him in without the PIN."],
+   ["Reminders","Young men who turn on reminders get one at 4 PM and 8 PM only if they haven't checked in. Leaders with an email get a 6 PM summary."]
+  ].forEach(function(x){var d=el("div","faq");d.appendChild(el("b",null,x[0]));d.appendChild(el("p",null,x[1]));f.appendChild(d);});
+  a.appendChild(f);
+}
+var leaderFirst=!!LEADER_PARAM;
+function loadApp(){
+  if(leaderFirst){leaderFirst=false;showLeaderView();return;}
+  if(!WARD&&!INVITE&&!LEGACY){showWelcome("");return;}
+  run("getData",[WARD,INVITE,LEGACY],function(data){D=data;if(INVITE&&data.youthCode&&!data.ward.isDefault){WARD=data.youthCode;ls("fsy-ward",WARD);}viewing=D.today;renderAll();},function(msg){
+    if(INVITE){INVITE="";ls("fsy-invite",null);showWelcome(msg);}
+    else if(WARD){WARD="";ls("fsy-ward",null);showWelcome(msg);}
+    else if(LEGACY){LEGACY=false;showWelcome("Ask your leader for your personal invite link.");}else{document.getElementById("card").innerHTML="";document.getElementById("card").appendChild(el("div","loading","Couldn't load: "+msg));}
+  });
+}
+
+function showCodeView(msg){
+  var a=showAlt();a.appendChild(backBtn());
+  var p=panel("Enter your ward code");
+  p.appendChild(el("p","small","Your leader gives you this code. You only enter it once on this phone."));
+  var f=field("Ward code","wardCodeIn","input","TIMBERLANE-482");f.input.autocapitalize="characters";p.appendChild(f.wrap);
+  var e=errLine();if(msg)e.textContent=msg;
+  var b=el("button","confirm","Open my ward");b.type="button";p.appendChild(b);p.appendChild(e);
+
+  b.onclick=function(){
+    var c=f.input.value.toUpperCase().replace(/[^A-Z0-9]/g,"");
+    if(c.length<4){e.textContent="Enter the code your leader gave you.";return;}
+    b.disabled=true;e.textContent="";
+    run("getData",[c,"",false],function(data){LEGACY=false;INVITE="";ls("fsy-invite",null);WARD=c;ls("fsy-ward",c);me=ls(nameKey());D=data;viewing=D.today;showApp();renderAll();},
+      function(m){b.disabled=false;e.textContent=m;});
+  };
+  a.appendChild(p);
+}
+
+function showSetupView(){
+  var a=showAlt();a.appendChild(backBtn());
+  var p=panel("Set up your ward");
+  p.appendChild(el("p","small","Takes about two minutes. Your young men will only see your ward's names. Only leaders can see their responses."));
+  var n=field("Ward name","setupWard","input","Hayden 3rd Ward");p.appendChild(n.wrap);
+  var r=field("Names, one per line (first name and last initial)","setupNames","textarea","Ethan S.\nCaleb R.\nLuke M.");r.input.rows=6;p.appendChild(r.wrap);
+  var z=field("Time zone","setupTz","select");p.appendChild(z.wrap);
+  var ZL={"America/Los_Angeles":"Pacific","America/Boise":"Mountain (Idaho)","America/Denver":"Mountain","America/Phoenix":"Arizona","America/Chicago":"Central","America/New_York":"Eastern","America/Anchorage":"Alaska","Pacific/Honolulu":"Hawaii"};
+  Object.keys(ZL).forEach(function(k){z.input.appendChild(new Option(ZL[k],k));});
+  var yn=field("Your name","setupLeaderName","input","Bro. Smith");p.appendChild(yn.wrap);
+  var ye=field("Your email (for your 6 PM summary and if you forget your PIN)","setupLeaderEmail","input","name@example.com");ye.input.type="email";p.appendChild(ye.wrap);
+  var lpin=field("Choose a 4-digit leader PIN","setupPin","input","4 numbers");lpin.input.inputMode="numeric";lpin.input.autocomplete="off";p.appendChild(lpin.wrap);
+  var sc=field("Setup PIN (ask the person who shared this with you)","setupCode","input");sc.input.inputMode="numeric";sc.wrap.hidden=true;p.appendChild(sc.wrap);
+  run("setupInfo",[],function(info){sc.wrap.hidden=!info.needsCode;},function(){});
+  var e=errLine();var b=el("button","confirm","Create my ward");b.type="button";p.appendChild(b);p.appendChild(e);
+  b.onclick=function(){
+    if(n.input.value.trim().length<3){e.textContent="Enter your ward name.";return;}
+    if(!r.input.value.trim()){e.textContent="Add at least one name.";return;}
+    if(!yn.input.value.trim()){e.textContent="Enter your name.";return;}
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ye.input.value.trim())){e.textContent="Enter your email.";return;}
+    if(!/^\d{4}$/.test(lpin.input.value.trim())){e.textContent="Choose a leader PIN that is exactly 4 numbers.";return;}
+    b.disabled=true;b.textContent="Creating…";e.textContent="";
+    run("createWard",[n.input.value,r.input.value,z.input.value,sc.input.value,lpin.input.value.trim(),yn.input.value,ye.input.value.trim()],function(res){
+      ls("fsy-leader",res.cred);
+      var a2=showAlt();a2.appendChild(backBtn());
+      var q=panel(res.wardName+" is ready");
+      q.appendChild(el("p",null,"Write these two down. You sign in as a leader with both."));
+      q.appendChild(el("div","lbl","Ward code"));q.appendChild(el("div","codebig",res.youthCode));
+      q.appendChild(el("div","lbl","Leader PIN (keep this private)"));q.appendChild(el("div","codebig",res.leaderPin));
+      q.appendChild(el("p","small","Next: open the leader view and send each young man his own invite link."));
+      var go=el("button","confirm","Open leader view");go.type="button";go.onclick=function(){showLeaderView();};q.appendChild(go);
+      a2.appendChild(q);
+    },function(m){b.disabled=false;b.textContent="Create my ward";e.textContent=m;});
+  };
+  a.appendChild(p);
+}
+
+function showLeaderView(){
+  var code=ls("fsy-leader");
+  var a=showAlt();a.appendChild(backBtn());
+  if(!code){
+    var p=panel("Leader sign-in");
+    p.appendChild(el("p","small","Enter your ward code and your 4-digit leader PIN. If another leader sent you a leader link, just open that instead."));
+    var wf=field("Ward code","leaderWardIn","input","GREENSFERRY-417");wf.input.autocapitalize="characters";p.appendChild(wf.wrap);
+    var f=field("Leader PIN","leaderCodeIn","input","4 numbers");f.input.inputMode="numeric";f.input.autocomplete="off";p.appendChild(f.wrap);
+    var e=errLine();var b=el("button","confirm","Sign in");b.type="button";p.appendChild(b);p.appendChild(e);
+    var fg=el("button","linkbtn","Forgot your PIN?");fg.type="button";p.appendChild(fg);
+    fg.onclick=function(){
+      var wc=wf.input.value.toUpperCase().replace(/[^A-Z0-9]/g,"");
+      if(!wc){e.textContent="Type your ward code above first, then tap Forgot your PIN? again.";return;}
+      fg.disabled=true;e.textContent="";
+      run("forgotPin",[wc],function(r){fg.disabled=false;e.textContent="";var ok=el("p","small",r.message);fg.after(ok);
+        fg.after(el("p","small","No email on file? Ask another leader in your ward to open his leader link and set a new PIN under Codes."));},
+        function(m){fg.disabled=false;e.textContent=m;});
+    };
+    b.onclick=function(){
+      var wc=wf.input.value.toUpperCase().replace(/[^A-Z0-9]/g,"");
+      var c=f.input.value.toUpperCase().replace(/[^A-Z0-9]/g,"");
+      if(!c){e.textContent="Enter your leader PIN.";return;}
+      if(!wc&&c.length<8){e.textContent="Enter your ward code too.";return;}
+      var cred=wc?wc+":"+c:c;
+      b.disabled=true;e.textContent="";
+      run("leaderData",[cred],function(L){ls("fsy-leader",cred);renderLeader(L);},function(m){b.disabled=false;e.textContent=m;});
+    };
+    a.appendChild(p);return;
+  }
+  a.appendChild(el("div","loading","Loading your ward…"));
+  run("leaderData",[code],renderLeader,function(m){ls("fsy-leader",null);showLeaderView();});
+}
+
+function renderLeader(L){
+  var code=ls("fsy-leader");
+  var a=showAlt();
+  var top=el("div","row2");top.style.justifyContent="space-between";top.appendChild(backBtn());
+  var so=el("button","linkbtn","Sign out");so.type="button";so.onclick=function(){ls("fsy-leader",null);showLeaderView();};top.appendChild(so);a.appendChild(top);
+  a.appendChild(el("h2",null,L.ward.name));
+
+  var share=panel("Invite your young men");
+  share.appendChild(el("p","small","Send each young man his own link. It sets up his phone as him, so he never picks a name and nobody can check in for him. Text it in a group with a parent or another leader."));
+  var il=el("div","rlist");
+  (L.invites||[]).forEach(function(v){
+    var row=el("div");row.appendChild(el("span",null,v.name));
+    var bx=el("span","row2");
+    var cpb=el("button","btn2","Copy link");cpb.type="button";
+    cpb.onclick=function(){
+      copyOrShow(cpb,"Here's your FSY Daily Prep link, "+v.name+". Tap it once and it's set up on your phone: "+v.link,row);
+    };
+    var nb=el("button","btn2","New link");nb.type="button";
+    nb.onclick=function(){
+      var yes=el("button","btn2 danger","Yes, new link");yes.type="button";bx.replaceChild(yes,nb);
+      yes.onclick=function(){yes.disabled=true;run("leaderResetInvite",[code,v.name],renderLeader,function(m){alertInv.textContent=m;});};
+    };
+    bx.appendChild(cpb);bx.appendChild(nb);row.appendChild(bx);il.appendChild(row);
+  });
+  share.appendChild(il);var alertInv=errLine();share.appendChild(alertInv);
+  share.appendChild(el("p","small","\"New link\" stops his old link from working. Use it if he loses his phone or the link gets shared."));
+  share.appendChild(el("div","lbl","Ward link (anyone can pick a name)"));
+  share.appendChild(copyRow(L.ward.link));
+  share.appendChild(el("p","small",L.ward.isDefault?"This is the main app link. No code needed.":"Youth code: "+L.ward.youthCode));
+  a.appendChild(share);
+
+  var wk=weekOf(L.today);
+  var g=panel("This week");var gw=el("div","grid");var t=el("table");var hr=el("tr");hr.appendChild(el("th",null,"Name"));
+  wk.forEach(function(d){hr.appendChild(el("th",null,fmt(d,{weekday:"narrow"})));});hr.appendChild(el("th",null,"Week"));t.appendChild(hr);
+  L.roster.forEach(function(n){
+    var tr=el("tr");tr.appendChild(el("td",null,n));var c=0;
+    wk.forEach(function(d){var has=L.checkins.some(function(x){return x.name===n&&x.date===d;});if(has)c++;
+      tr.appendChild(el("td",has?"y":(d>L.today?"":"n"),has?"✓":(d>L.today?"":"–")));});
+    tr.appendChild(el("td",null,String(c)));t.appendChild(tr);
+  });
+  gw.appendChild(t);g.appendChild(gw);if(!L.roster.length)g.appendChild(el("p","small","Add names below to get started."));a.appendChild(g);
+
+  var rp=panel("Responses");var sel=el("select");sel.id="respRange";
+  [["week","This week"],["14","Last 14 days"],["all","Everything"]].forEach(function(o){sel.appendChild(new Option(o[1],o[0]));});
+  var box=el("div");rp.appendChild(sel);rp.appendChild(box);
+  function drawResp(){
+    box.innerHTML="";var from=sel.value==="week"?wk[0]:sel.value==="14"?shift(L.today,-13):"0000";
+    var list=L.checkins.filter(function(c){return c.date>=from;}).slice().reverse();
+    if(!list.length){box.appendChild(el("p","small","No responses in this range yet."));return;}
+    list.forEach(function(c){var d=el("div","resp");
+      d.appendChild(el("div","meta",c.name+" · "+fmt(c.date,{weekday:"short",month:"short",day:"numeric"})+(L.titles[c.date]?" · "+L.titles[c.date]:"")));
+      d.appendChild(el("p",null,c.thought));box.appendChild(d);});
+  }
+  sel.onchange=drawResp;drawResp();a.appendChild(rp);
+
+  var ro=panel("Roster");var rl=el("div","rlist");
+  L.roster.forEach(function(n){
+    var row=el("div");row.appendChild(el("span",null,n));
+    var rm=el("button","btn2 danger","Remove");rm.type="button";
+    rm.onclick=function(){
+      var yes=el("button","btn2 danger","Yes, remove");yes.type="button";var no=el("button","btn2","Cancel");no.type="button";
+      var w=el("span","row2");w.appendChild(yes);w.appendChild(no);row.replaceChild(w,rm);
+      no.onclick=function(){row.replaceChild(rm,w);};
+      yes.onclick=function(){yes.disabled=true;run("leaderRemoveName",[code,n],renderLeader,function(m){alertLine.textContent=m;});};
+    };
+    row.appendChild(rm);rl.appendChild(row);
+  });
+  ro.appendChild(rl);
+  var add=el("div","row2");var ai=el("input");ai.id="addName";ai.placeholder="New name";var ab=el("button","btn2","Add");ab.type="button";
+  add.appendChild(ai);add.appendChild(ab);ro.appendChild(add);var alertLine=errLine();ro.appendChild(alertLine);
+  ab.onclick=function(){if(!ai.value.trim()){alertLine.textContent="Enter a name.";return;}ab.disabled=true;
+    run("leaderAddName",[code,ai.value],renderLeader,function(m){ab.disabled=false;alertLine.textContent=m;});};
+  a.appendChild(ro);
+
+  var lp=panel("Leaders who can see responses");
+  lp.appendChild(el("p","small","Give each leader his own link. It opens this page directly. Remove someone when he's released and his link stops working."));
+  var ll=el("div","rlist");
+  (L.leaders||[]).forEach(function(v){
+    var row=el("div");var nm=el("span",null,v.name);if(v.email){nm.appendChild(el("span","small"," · daily email"));}row.appendChild(nm);var bx=el("span","row2");
+    var cpb=el("button","btn2","Copy link");cpb.type="button";
+    cpb.onclick=function(){
+      copyOrShow(cpb,"Here's your leader link for FSY Daily Prep: "+v.link+" (keep it private, it shows the young men's responses)",row);
+    };
+    var rb=el("button","btn2 danger","Remove");rb.type="button";
+    rb.onclick=function(){var yes=el("button","btn2 danger","Yes, remove");yes.type="button";bx.replaceChild(yes,rb);
+      yes.onclick=function(){yes.disabled=true;run("leaderRemoveLeader",[code,v.name],renderLeader,function(m){la.textContent=m;});};};
+    bx.appendChild(cpb);bx.appendChild(rb);row.appendChild(bx);ll.appendChild(row);
+  });
+  if(!(L.leaders||[]).length)ll.appendChild(el("p","small","No personal leader links yet."));
+  lp.appendChild(ll);
+  var lad=el("div","row2");var lin=el("input");lin.id="addLeader";lin.placeholder="Leader's name, like Bro. Smith";
+  var lem=el("input");lem.id="addLeaderEmail";lem.type="email";lem.placeholder="Email for a 6 PM summary (optional)";
+  var lab=el("button","btn2","Add leader");lab.type="button";
+  lad.appendChild(lin);lad.appendChild(lem);lad.appendChild(lab);lp.appendChild(lad);var la=errLine();lp.appendChild(la);
+  lp.appendChild(el("p","small","Leaders with an email get a short note at 6 PM listing who hasn't checked in. To change an email, remove the leader and add him again."));
+  lab.onclick=function(){if(!lin.value.trim()){la.textContent="Enter the leader's name.";return;}lab.disabled=true;
+    run("leaderAddLeader",[code,lin.value,lem.value],renderLeader,function(m){lab.disabled=false;la.textContent=m;});};
+  a.appendChild(lp);
+
+  var cp=panel("Codes");
+  cp.appendChild(el("p","small","Ward code: "+L.ward.youthCode+". Leaders sign in with the ward code plus the leader PIN."));
+  var pr=el("div","row2");var pi=el("input");pi.id="newPin";pi.inputMode="numeric";pi.autocomplete="off";pi.placeholder="New 4-digit PIN";
+  var pb=el("button","btn2","Change leader PIN");pb.type="button";pr.appendChild(pi);pr.appendChild(pb);cp.appendChild(pr);
+  pb.onclick=function(){
+    if(!/^\d{4}$/.test(pi.value.trim())){cl.textContent="Enter exactly 4 numbers.";return;}
+    pb.disabled=true;cl.textContent="";
+    run("leaderSetPin",[code,pi.value.trim()],function(res){
+      if(String(code).indexOf(":")>=0||String(code).length<12){ls("fsy-leader",res.cred);code=res.cred;}
+      pb.disabled=false;pi.value="";cl.textContent="";pr.after(el("p","small","PIN changed to "+res.pin+". Tell your other leaders who sign in with the PIN."));
+    },function(m){pb.disabled=false;cl.textContent=m;});
+  };
+  cp.appendChild(el("p","small","If the ward code gets shared too widely, make a new one. The old one stops working right away."));
+  var cl=errLine();
+  function codeBtn(label,which,warn){
+    var b=el("button","btn2",label);b.type="button";
+    b.onclick=function(){
+      var yes=el("button","btn2 danger","Yes, make a new code");yes.type="button";
+      var w=el("div");w.appendChild(el("p","small",warn));w.appendChild(yes);b.replaceWith(w);
+      yes.onclick=function(){yes.disabled=true;run("leaderNewCode",[code,which],function(nc){
+        if(which==="leader"){ls("fsy-leader",nc);}
+        w.innerHTML="";w.appendChild(el("p",null,"New ward code:"));w.appendChild(el("div","codebig",nc));
+        if(String(code).indexOf(":")>=0){var pinPart=String(code).split(":")[1];code=nc.replace(/[^A-Z0-9]/g,"")+":"+pinPart;ls("fsy-leader",code);}
+      },function(m){cl.textContent=m;});};
+    };
+    return b;
+  }
+  cp.appendChild(codeBtn("New ward code","youth","Leaders will sign in with the new ward code. Young men using invite links aren't affected."));
+  cp.appendChild(cl);a.appendChild(cp);
+}
+
+document.getElementById("lnkCode").onclick=function(){showCodeView("");};
+document.getElementById("lnkLeader").onclick=showLeaderView;
+document.getElementById("lnkSetup").onclick=showSetupView;
+loadApp();
+
+</script>
+</body>
+</html>
