@@ -59,6 +59,7 @@
   var invite = clean(q.get("i"), 16).toUpperCase();
   var ward = clean(q.get("w"), 24).toUpperCase();
   var leader = clean(q.get("L"), 16).toUpperCase();
+  var join = clean(q.get("j"), 24).toUpperCase();
   if (invite) { set("fsy-i", invite); set("fsy-w", ""); }
   else if (ward) { set("fsy-w", ward); set("fsy-i", ""); }
   invite = invite || get("fsy-i");
@@ -69,7 +70,8 @@
   if (invite) src += "i=" + encodeURIComponent(invite) + "&";
   else if (ward) src += "w=" + encodeURIComponent(ward) + "&";
   if (name && !invite) src += "n=" + encodeURIComponent(name) + "&";
-  if (leader) src += "L=" + encodeURIComponent(leader);
+  if (leader) src += "L=" + encodeURIComponent(leader) + "&";
+  if (join && !invite) src += "j=" + encodeURIComponent(join);
   document.getElementById("app").src = src;
 
   // The app tells this page who's checking in, so a phone stays set up even if the app's own storage is cleared.
@@ -77,7 +79,11 @@
     if (!/\.googleusercontent\.com$|^https:\/\/script\.google\.com$/.test(e.origin)) return;
     var d = e.data && e.data.fsy;
     if (!d) return;
-    if (typeof d.i === "string") { set("fsy-i", clean(d.i, 16).toUpperCase()); invite = get("fsy-i"); }
+    if (typeof d.i === "string") {
+      set("fsy-i", clean(d.i, 16).toUpperCase()); invite = get("fsy-i");
+      // Put his personal sign-in in the address, so Add to Home Screen saves an icon that opens as him.
+      if (invite && location.search.indexOf("i=" + invite) < 0) { try { history.replaceState(null, "", "/?i=" + invite); } catch (x) {} }
+    }
     if (typeof d.w === "string") set("fsy-w", clean(d.w, 24).toUpperCase());
     if (typeof d.n === "string") set("fsy-n", clean(d.n, 40));
     if (d.askReminders) askReminders();

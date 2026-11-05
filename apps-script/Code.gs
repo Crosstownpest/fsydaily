@@ -1,6 +1,6 @@
 // FSY_DAILY_PREP_CODE
 // FSY Daily Prep: one app for many wards, backed by the Google Sheet this script is attached to.
-// Tabs: Wards (ID | Name | Youth code | Leader code | Created | Time zone), Roster (Name | Notes | Ward ID | Invite),
+// Tabs: Wards (ID | Name | Join code | Old leader PIN | Created | Time zone), Roster (Name | Notes | Ward ID | Invite | Joined),
 //       Readings, Check-ins (Timestamp | Date | Name | Thought | Ward ID), Board.
 // Greens Ferry is the default ward: the plain app link opens it, exactly like before.
 // Not an official app of The Church of Jesus Christ of Latter-day Saints.
@@ -26,6 +26,7 @@ function doGet(e) {
   t.nameParam = String(p.n || '').slice(0, 40);
   t.inviteParam = norm_(p.i).slice(0, 16);
   t.leaderParam = norm_(p.L).slice(0, 16);
+  t.joinParam = norm_(p.j).slice(0, 24);
   t.appUrl = ScriptApp.getService().getUrl();
   t.zones = ZONES;
   return t.evaluate()
@@ -180,7 +181,7 @@ function invites_() {
     const m = {};
     sh_('Roster').getDataRange().getValues().slice(1).forEach(function (r) {
       const t = norm_(r[3]);
-      if (t && String(r[0]).trim()) m[t] = { ward: wardOf_(r[2]), name: String(r[0]).trim() };
+      if (t && String(r[0]).trim()) m[t] = { ward: wardOf_(r[2]), name: String(r[0]).trim(), joined: !!String(r[4] || '').trim() };
     });
     return m;
   });
@@ -188,8 +189,44 @@ function invites_() {
 function byInvite_(token) {
   const hit = invites_()[norm_(token)];
   const w = hit ? wardById_(hit.ward) : null;
-  if (!w) throw new Error('This invite link no longer works. Ask your leader to send you a new one.');
+  if (!w) throw new Error("This phone's sign-in was reset. Open your quorum's join link and tap your name again.");
+  if (!hit.joined) markJoined_(w.id, hit.name);
   return { ward: w, name: hit.name };
+}
+// Roster rows for one ward, straight from the sheet: { row, name, token, joined }
+function rosterRows_(wardId) {
+  const out = [];
+  sh_('Roster').getDataRange().getValues().forEach(function (r, i) {
+    if (i === 0 || !String(r[0]).trim() || wardOf_(r[2]) !== wardId) return;
+    out.push({ row: i + 1, name: String(r[0]).trim(), token: norm_(r[3]), joined: String(r[4] || '').trim() });
+  });
+  return out;
+}
+function markJoined_(wardId, name) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) return;
+  try {
+    rosterRows_(wardId).forEach(function (r) {
+      if (r.name === name && !r.joined) sh_('Roster').getRange(r.row, 5).setValue("'" + Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd'));
+    });
+    bust_(['invites']);
+  } finally { lock.releaseLock(); }
+}
+function wardByJoin_(code) {
+  code = norm_(code);
+  const w = code ? wards_().filter(function (x) { return x.youth === code; })[0] : null;
+  if (!w) throw new Error("That join link doesn't work anymore. Ask your leader for the current one.");
+  return w;
+}
+function joinLink_(w) { return base_() + '?j=' + norm_(w.youth); }
+function sendLeaderLink_(to, wardName, token, intro) {
+  const link = base_() + '?L=' + token;
+  const name = String(wardName).replace(/^'/, '').replace(/[<>&]/g, '');
+  MailApp.sendEmail({ to: to, name: 'FSY Daily Prep', subject: 'Your FSY Daily Prep sign-in link: ' + name,
+    htmlBody: '<div style="font-family:Arial,sans-serif;font-size:15px;color:#18212b">' +
+      '<p>' + intro + '</p>' +
+      '<p><a href="' + link + '" style="display:inline-block;padding:12px 18px;background:#b5821f;color:#1a1205;border-radius:8px;text-decoration:none;font-weight:bold">Open the ' + name + ' dashboard</a></p>' +
+      '<p style="color:#5b6774;font-size:13px">This link signs you in, so keep it to yourself. Your phone stays signed in after you open it. Save it to your home screen for quick access.</p></div>' });
 }
 // gives every name in a ward an invite token (run under the script lock)
 function ensureTokens_(wardId) {
@@ -254,6 +291,56 @@ function readings_() {
 }
 
 /* ---------- youth ---------- */
+// Boys: list of names for a ward's join link (no answers, no tokens).
+function joinInfo(code) {
+  const w = wardByJoin_(code);
+  return { wardName: String(w.name).replace(/^'/, ''), names: rosterRows_(w.id).map(function (r) { return { name: r.name, joined: !!r.joined }; }) };
+}
+// A boy taps his name on the join page. The name locks to his phone until a leader taps Reset.
+// Phones already set up the old way (legacy) can keep their name without a reset.
+function claimName(code, name, legacy) {
+  name = String(name || '').trim();
+  let w;
+  if (code) w = wardByJoin_(code);
+  else w = wardByYouth_('', legacy);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    const r = rosterRows_(w.id).filter(function (x) { return x.name === name; })[0];
+    if (!r) throw new Error("That name isn't on your quorum's list. Ask your leader to add you.");
+    const oldPhone = legacy && Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd') <= LEGACY_UNTIL;
+    if (r.joined && r.token && !oldPhone) throw new Error('TAKEN');
+    let token = r.token;
+    if (!token) { token = newToken_(); sh_('Roster').getRange(r.row, 4).setValue(token); }
+    if (!r.joined) sh_('Roster').getRange(r.row, 5).setValue("'" + Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd'));
+    bust_(['invites']);
+    return { invite: token };
+  } finally {
+    lock.releaseLock();
+  }
+}
+// A boy whose name is already taken (new phone, cleared browser) asks his leaders to reset him.
+function requestReset(code, name) {
+  const w = wardByJoin_(code);
+  return requestInvite(w.id, name);
+}
+// Leaders sign in by email: we send a sign-in link for every ward that email leads. Same answer either way.
+function leaderEmailLink(email) {
+  email = String(email || '').trim().toLowerCase();
+  const msg = "If that email belongs to a leader, we just sent a sign-in link. Check your inbox (and spam).";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Enter your email.');
+  const c = cache_(), key = 'mail_' + email;
+  if (c.get(key)) return { message: msg };
+  c.put(key, '1', 300);
+  const m = leaders_();
+  Object.keys(m).forEach(function (t) {
+    if (String(m[t].email).toLowerCase() !== email) return;
+    const w = wardById_(m[t].ward);
+    if (w) { try { sendLeaderLink_(m[t].email, w.name, t, 'Here is your sign-in link for FSY Daily Prep.'); } catch (x) { console.error(x); } }
+  });
+  return { message: msg };
+}
+
 function getData(youthCode, invite, legacy) {
   let w, me = '';
   if (invite) { const v = byInvite_(invite); w = v.ward; me = v.name; }
@@ -293,12 +380,13 @@ function checkIn(youthCode, name, thought, invite, legacy) {
 /* ---------- ward setup ---------- */
 function setupInfo() { return { needsCode: !!setupCode_(), zones: ZONES }; }
 
-function createWard(wardName, namesText, tz, setupCode, leaderPin, leaderName, leaderEmail) {
+function createWard(wardName, namesText, tz, setupCode, leaderName, leaderEmail) {
+  tooMany_('fail_create');
   if (setupCode_()) {
     tooMany_('fail_setup');
     if (norm_(setupCode) !== norm_(setupCode_())) { failed_('fail_setup'); throw new Error("That setup PIN didn't work. Ask the person who shared FSY Daily Prep with you."); }
   }
-  const pin = pin_(leaderPin);
+  const pin = String(1000 + Math.floor(Math.random() * 9000));   // backup only; leaders sign in by email
   leaderName = clean_(leaderName, 40);
   leaderEmail = String(leaderEmail || '').trim().slice(0, 120);
   if (!leaderName) throw new Error('Enter your name.');
@@ -311,7 +399,6 @@ function createWard(wardName, namesText, tz, setupCode, leaderPin, leaderName, l
     n = clean_(n, 40);
     if (n && names.indexOf(n) < 0) names.push(n);
   });
-  if (!names.length) throw new Error('Add at least one name, one per line.');
   if (names.length > MAX_NAMES) throw new Error('Add up to ' + MAX_NAMES + ' names for now.');
   const lock = LockService.getScriptLock();
   lock.waitLock(15000);
@@ -321,13 +408,15 @@ function createWard(wardName, namesText, tz, setupCode, leaderPin, leaderName, l
     const w = { id: 'w_' + Date.now().toString(36), name: wardName, youth: youthCode_(wardName), leader: pin };
     sh_('Wards').appendRow([w.id, w.name, w.youth, "'" + w.leader, "'" + Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd'), tz]);
     const sh = sh_('Roster');
-    sh.getRange(sh.getLastRow() + 1, 1, names.length, 3)
+    if (names.length) sh.getRange(sh.getLastRow() + 1, 1, names.length, 4)
       .setValues(names.map(function (n) { return [n, '', w.id, newToken_()]; }));
     let lt;
     do { lt = newCode_(12); } while (leaders_()[lt]);
     leadersSheet_().appendRow([leaderName, w.id, lt, "'" + Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd'), leaderEmail]);
     bust_(['wards', 'roster_' + w.id, 'invites', 'leaders']);
-    return { wardName: w.name.replace(/^'/, ''), youthCode: w.youth, leaderPin: pin, cred: norm_(w.youth) + ':' + pin, leaderCode: w.leader, link: link_(w) };
+    failed_('fail_create');   // counts toward a limit of 5 new wards per 15 minutes
+    try { sendLeaderLink_(leaderEmail, wardName, lt, 'Your ward is set up on FSY Daily Prep. Use this link to open your dashboard on any phone or computer.'); } catch (x) { console.error(x); }
+    return { wardName: w.name.replace(/^'/, ''), cred: lt };
   } finally {
     lock.releaseLock();
   }
@@ -341,7 +430,9 @@ function leaderData(leaderCode) {
   try { ensureTokens_(w.id); } finally { lock.releaseLock(); }
   const titles = {};
   readings_().forEach(function (r) { titles[r.date] = r.title; });
-  return { today: today_(w), ward: { name: w.name, youthCode: w.youthPretty || w.youth, link: link_(w), isDefault: w.id === DEFAULT_WARD_ID },
+  const boys = rosterRows_(w.id).map(function (r) { return { name: r.name, joined: !!r.joined }; });
+  return { today: today_(w), boys: boys, joinLink: joinLink_(w), tz: tzOf_(w),
+           ward: { name: w.name, youthCode: w.youthPretty || w.youth, link: link_(w), isDefault: w.id === DEFAULT_WARD_ID },
            leaders: leaderList_(w.id), roster: roster_(w.id), invites: inviteList_(w.id), checkins: checkinsFull_(w.id), titles: titles };
 }
 
@@ -358,6 +449,44 @@ function leaderAddName(leaderCode, name) {
     if (r.length >= MAX_NAMES) throw new Error('Your roster is full.');
     sh_('Roster').appendRow([name, '', w.id, newToken_()]);
     bust_(['roster_' + w.id, 'invites']);
+  } finally {
+    lock.releaseLock();
+  }
+  return leaderData(leaderCode);
+}
+
+function leaderAddNames(leaderCode, text) {
+  const w = wardByLeader_(leaderCode);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    bust_(['roster_' + w.id]);
+    const have = roster_(w.id), add = [];
+    String(text || '').split(/[\n,]/).forEach(function (n) {
+      n = clean_(n, 40);
+      if (n && have.indexOf(n) < 0 && add.indexOf(n) < 0) add.push(n);
+    });
+    if (!add.length) throw new Error('Type at least one new name.');
+    if (have.length + add.length > MAX_NAMES) throw new Error('That would put more than ' + MAX_NAMES + ' names on your list.');
+    const sh = sh_('Roster');
+    sh.getRange(sh.getLastRow() + 1, 1, add.length, 4).setValues(add.map(function (n) { return [n, '', w.id, newToken_()]; }));
+    bust_(['roster_' + w.id, 'invites']);
+  } finally {
+    lock.releaseLock();
+  }
+  return leaderData(leaderCode);
+}
+// New phone or logged out: gives him a fresh sign-in and lets him tap his name on the join page again.
+function leaderResetBoy(leaderCode, name) {
+  const w = wardByLeader_(leaderCode);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    rosterRows_(w.id).forEach(function (r) {
+      if (r.name !== String(name).trim()) return;
+      sh_('Roster').getRange(r.row, 4, 1, 2).setValues([[newToken_(), '']]);
+    });
+    bust_(['invites']);
   } finally {
     lock.releaseLock();
   }
@@ -391,7 +520,7 @@ function leaderAddLeader(leaderCode, name, email) {
   name = clean_(name, 40);
   email = String(email || '').trim().slice(0, 120);
   if (!name) throw new Error("Enter the leader's name.");
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("That email doesn't look right. Check it and try again.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Enter the leader's email. That's how he signs in.");
   const lock = LockService.getScriptLock();
   lock.waitLock(15000);
   try {
@@ -400,6 +529,7 @@ function leaderAddLeader(leaderCode, name, email) {
     do { t = newCode_(12); } while (leaders_()[t]);
     leadersSheet_().appendRow([name, w.id, t, "'" + today_(w), email]);
     bust_(['leaders']);
+    try { sendLeaderLink_(email, w.name, t, 'You were added as a leader for ' + String(w.name).replace(/[<>&]/g, '') + ' on FSY Daily Prep. Open your dashboard to see your young men\'s check-ins and responses.'); } catch (x) { console.error(x); }
   } finally {
     lock.releaseLock();
   }
@@ -475,14 +605,14 @@ function requestInvite(wardId, name) {
   if (!to.length) return { message: "Your ward's leaders don't have an email on file. Ask one of them at church for your link." };
   const esc = function (x) { return String(x).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); };
   MailApp.sendEmail({ to: to.join(','), name: 'FSY Daily Prep',
-    subject: name + ' needs his FSY Daily Prep link',
+    subject: name + ' needs to be reset on FSY Daily Prep',
     htmlBody: '<div style="font-family:Arial,sans-serif;font-size:15px;color:#18212b">' +
-      '<p><b>' + esc(name) + '</b> says he got logged out of FSY Daily Prep and asked for his link.</p>' +
-      '<p>Open your leader view, tap <b>Copy link</b> next to his name, and text it to him (in a group with a parent or another leader).</p>' +
+      '<p><b>' + esc(name) + '</b> says he can\'t get into FSY Daily Prep on his phone (new phone, or he got logged out).</p>' +
+      '<p>Open your dashboard and tap <b>Reset</b> next to his name. Then he can open your quorum\'s join link and tap his name again.</p>' +
       '<p style="color:#5b6774;font-size:13px">Don\'t recognize the name? Ignore this. Anyone can send a request, but only you can send the link.</p></div>' });
   c.put(nk, '1', 1800);
   c.put(wk, String(Number(c.get(wk) || 0) + 1), 3600);
-  return { message: 'Sent. Your leaders got an email and will text you your link.' };
+  return { message: 'Sent. Your leaders got an email. Once they tap Reset, open the join link again and tap your name.' };
 }
 
 // "Forgot your PIN?": emails each leader in that ward (who has an email on file) his personal sign-in link.
@@ -525,6 +655,32 @@ function leaderSetPin(leaderCode, newPin) {
     lock.releaseLock();
   }
   return { cred: norm_(w.youth) + ':' + pin, wardCode: w.youthPretty || w.youth, pin: pin };
+}
+
+/* ---------- feedback ---------- */
+// The small Feedback link at the bottom of every screen lands here: saved to a Feedback tab and emailed to the app owner.
+function sendFeedback(kind, message, contact, context) {
+  message = String(message || '').trim().slice(0, 2000);
+  if (message.length < 5) throw new Error('Tell us a little more first.');
+  kind = kind === 'idea' ? 'Idea' : 'Problem';
+  contact = String(contact || '').trim().slice(0, 120);
+  context = String(context || '').slice(0, 300);
+  const c = cache_(), n = Number(c.get('fb_count') || 0);
+  if (n >= 20) throw new Error('Lots of feedback right now. Please try again in an hour.');
+  c.put('fb_count', String(n + 1), 3600);
+  let sh = sh_('Feedback');
+  if (!sh) { sh = ss_().insertSheet('Feedback'); sh.appendRow(['When', 'Type', 'Message', 'Reply to', 'Where']); sh.setFrozenRows(1); }
+  const safe = function (x) { return /^[=+\-@]/.test(x) ? "'" + x : x; };
+  sh.appendRow([new Date(), kind, safe(message), safe(contact), safe(context)]);
+  try {
+    const owner = settings_()['Feedback email'] || '';   // set in the Settings tab
+    const esc = function (x) { return String(x).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); };
+    if (owner) MailApp.sendEmail({ to: owner, name: 'FSY Daily Prep', subject: 'FSY Daily Prep ' + kind.toLowerCase() + ': ' + message.slice(0, 60),
+      replyTo: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact) ? contact : undefined,
+      htmlBody: '<div style="font-family:Arial,sans-serif;font-size:15px;color:#18212b"><p><b>' + kind + '</b></p><p>' + esc(message).replace(/\n/g, '<br>') + '</p>' +
+        '<p style="color:#5b6774;font-size:13px">Reply to: ' + (esc(contact) || 'not given') + '<br>Where: ' + esc(context) + '</p></div>' });
+  } catch (x) { console.error(x); }
+  return { message: 'Thanks. It went straight to the person who runs FSY Daily Prep.' };
 }
 
 // Run this from the editor after you edit the sheet by hand, so the app sees your change right away.

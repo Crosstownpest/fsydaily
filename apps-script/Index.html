@@ -4,6 +4,7 @@
 <base target="_blank">
 <meta charset="utf-8">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Barlow:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root{
   --bg:#eef1f4; --surface:#fff; --ink:#18212b; --muted:#5b6774; --line:#d5dbe2;
@@ -106,6 +107,20 @@ textarea{width:100%;min-height:64px;border:1px solid var(--line);border-radius:8
 .mission{margin:0;max-width:34ch;font-family:var(--f-read);font-size:1.08rem;line-height:1.55;color:var(--muted)}
 .guide{margin:0;padding-left:20px;display:grid;gap:10px}.guide p,.faq p{margin:2px 0 0}
 .faq{border-top:1px solid var(--line);padding-top:8px}
+.btn2.picked{border-color:var(--brass);background:var(--brass-soft)}
+.foot-links .linkbtn{font-size:.85rem}
+.names{display:grid;gap:8px}
+.namebtn{display:flex;justify-content:space-between;align-items:center;text-align:left;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font-weight:600;font-size:1.05rem}
+.namebtn.taken{opacity:.7}
+.qr{display:flex;justify-content:center;padding:8px;background:#fff;border-radius:10px;width:max-content;margin:0 auto}
+.boys{display:grid}
+.boy{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--line)}
+.boyname{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;font-weight:600}
+.chip2{font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:10px}
+.chip2.ok{background:var(--good-soft);color:var(--good)}.chip2.wait{background:var(--brass-soft);color:var(--brass)}
+.dots2{display:flex;gap:3px}.d2{width:9px;height:9px;border-radius:50%;background:var(--line)}.d2.on{background:var(--good)}.d2.fut{background:transparent;border:1px dashed var(--line)}
+.acts .btn2{padding:6px 10px;font-size:.88rem}
+#addNames{flex:1;min-width:180px}
 .rlist{display:grid;gap:6px}.rlist div{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
 </style>
 </head>
@@ -131,9 +146,10 @@ textarea{width:100%;min-height:64px;border:1px solid var(--line);border-radius:8
 </main>
 <section class="wrap alt" id="alt" hidden></section>
 <nav class="foot-links" id="footLinks">
-  <button class="linkbtn" id="lnkCode" type="button">Enter a ward code</button>
+  <button class="linkbtn" id="lnkCode" type="button">Home</button>
   <button class="linkbtn" id="lnkLeader" type="button">Leaders</button>
-  <button class="linkbtn" id="lnkSetup" type="button">Set up a new ward</button>
+  <button class="linkbtn" id="lnkSetup" type="button">How it works</button>
+  <button class="linkbtn" id="lnkFeedback" type="button">Feedback</button>
 </nav>
 <p class="small" style="text-align:center;padding:0 16px 28px;margin:-18px 0 0">Not an official app of The Church of Jesus Christ of Latter-day Saints.</p>
 
@@ -142,6 +158,7 @@ var WARD_PARAM = <?!= JSON.stringify(wardParam) ?>;
 var NAME_PARAM = <?!= JSON.stringify(nameParam) ?>;
 var INVITE_PARAM = <?!= JSON.stringify(inviteParam) ?>;
 var LEADER_PARAM = <?!= JSON.stringify(leaderParam) ?>;
+var JOIN_PARAM = <?!= JSON.stringify(joinParam) ?>;
 var APP_URL = <?!= JSON.stringify(appUrl) ?>;
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v);}catch(e){}return null;}
 var WARD = WARD_PARAM || ls("fsy-ward") || "";
@@ -215,12 +232,7 @@ function renderWho(){
     box.appendChild(b);return;
   }
   box.className="whoami";
-  var l=el("label",null,"Who are you?");l.htmlFor="namePick";box.appendChild(l);
-  var s=el("select");s.id="namePick";
-  s.appendChild(new Option("Pick your name",""));
-  D.roster.forEach(function(n){s.appendChild(new Option(n,n));});
-  s.onchange=function(){if(!s.value)return;me=s.value;try{localStorage.setItem(nameKey(),me);}catch(e){}tellParent();renderAll();};
-  box.appendChild(s);
+  var pk=el("button","btn2","Tap your name to set up this phone");pk.type="button";pk.onclick=function(){showJoin(D.youthCode);};box.appendChild(pk);
 }
 
 function renderCard(){
@@ -247,7 +259,7 @@ function renderCard(){
   var mine=me?daysFor(me):{};
   if(mine[viewing]){foot.appendChild(el("div","done","✓ Checked in "+(viewing===D.today?"today":"for this day")+". See you Sunday."));return;}
   if(viewing!==D.today){foot.appendChild(el("p","small",viewing<D.today?"Check-ins count on the day of the reading. Today's reading is waiting for you.":"This reading opens on "+fmt(viewing,{weekday:"long"})+"."));return;}
-  if(!me){foot.appendChild(el("p","small","Pick your name at the top so your check-in counts."));return;}
+  if(!INVITE){foot.appendChild(el("p","small","Set up this phone first (button at the top) so your check-in counts."));return;}
   var lab=el("label",null,"What stood out to you, or what will you bring Sunday? (required, your adviser can see this)");lab.htmlFor="thoughtInput";foot.appendChild(lab);
   var ta=el("textarea");ta.id="thoughtInput";ta.maxLength=400;ta.placeholder="One or two sentences...";foot.appendChild(ta);
   try{var dr=localStorage.getItem("fsy-draft-"+D.today);if(dr)ta.value=dr;}catch(e){}
@@ -318,16 +330,19 @@ function showWelcome(msg){
   hero.appendChild(el("h2",null,"FSY Daily Prep"));
   hero.appendChild(el("p","mission","Helping young men come to Sunday ready. A few minutes each day with the scriptures and the For the Strength of Youth lesson, so every quorum discussion starts with something real to share."));
   a.appendChild(hero);
+  if(ls("fsy-leader")){
+    var me2=panel(null);var od=el("button","confirm","Open my leader dashboard");od.type="button";od.onclick=showLeaderView;me2.appendChild(od);a.appendChild(me2);
+  }
   var p=panel("Young men");
-  p.appendChild(el("p",null,"Open the invite link your leader texted you. It sets this phone up for you, and you never need a password."));
+  p.appendChild(el("p",null,"Open the join link your leader shared, or scan the code in class, then tap your name. That's it. No password."));
   if(msg)p.appendChild(el("p","err",msg));
   var yr=el("div","row2");
-  var b0=el("button","btn2","Lost your link?");b0.type="button";b0.onclick=showLostLink;
-  var b1=el("button","btn2","I have a ward code");b1.type="button";b1.onclick=function(){showCodeView("");};
-  yr.appendChild(b0);yr.appendChild(b1);p.appendChild(yr);
+  var b1=el("button","btn2","Type my ward code");b1.type="button";b1.onclick=function(){showCodeView("");};
+  var b0=el("button","btn2","My phone got logged out");b0.type="button";b0.onclick=showLostLink;
+  yr.appendChild(b1);yr.appendChild(b0);p.appendChild(yr);
   a.appendChild(p);
   var q=panel("Leaders");
-  q.appendChild(el("p",null,"See your young men's responses, send invite links, and get a 6 PM summary of who still needs to check in."));
+  q.appendChild(el("p",null,"See your young men's check-ins and responses, and get a 6 PM summary of who still needs to check in."));
   var row=el("div","row2");
   var b2=el("button","btn2","Leader sign-in");b2.type="button";b2.onclick=showLeaderView;
   var b3=el("button","btn2","Set up a new ward");b3.type="button";b3.onclick=showSetupView;
@@ -335,10 +350,50 @@ function showWelcome(msg){
   row.appendChild(b2);row.appendChild(b3);row.appendChild(b4);q.appendChild(row);
   a.appendChild(q);
 }
+
+/* ---------- young men: join page (tap your name once) ---------- */
+function showJoin(code,msg){
+  var a=showAlt();a.appendChild(el("div","loading","Loading your quorum…"));
+  run("joinInfo",[code],function(info){
+    var a2=showAlt();
+    var p=panel("Welcome to FSY Daily Prep");
+    p.appendChild(el("p",null,info.wardName+": tap your name. This sets up your phone. You only do it once."));
+    if(msg)p.appendChild(el("p","err",msg));
+    var list=el("div","names");
+    info.names.forEach(function(n){
+      var b=el("button","namebtn"+(n.joined?" taken":""),n.name);b.type="button";
+      if(n.joined)b.appendChild(el("span","small"," · already set up"));
+      b.onclick=function(){claim(code,n.name,b);};
+      list.appendChild(b);
+    });
+    if(!info.names.length)list.appendChild(el("p","small","Your leader hasn't added any names yet."));
+    p.appendChild(list);
+    p.appendChild(el("p","small","Don't see your name? Ask your leader to add you."));
+    a2.appendChild(p);
+  },function(m){WARD="";ls("fsy-ward",null);showWelcome(m);});
+}
+function claim(code,name,btn){
+  btn.disabled=true;
+  run("claimName",[code,name,LEGACY],function(res){
+    INVITE=res.invite;ls("fsy-invite",INVITE);me=name;ls(nameKey(),name);tellParent();D=null;showApp();loadApp();
+  },function(m){
+    btn.disabled=false;
+    if(m==="TAKEN"){
+      var a=showAlt();a.appendChild(backBtn());
+      var p=panel(name+" is already set up");
+      p.appendChild(el("p",null,"Your name is set up on another phone. If that's you on a new phone or you got logged out, ask your leaders to reset you. Then come back and tap your name."));
+      var e=errLine();var b=el("button","confirm","Ask my leaders to reset me");b.type="button";p.appendChild(b);p.appendChild(e);
+      b.onclick=function(){b.disabled=true;run("requestReset",[code,name],function(r){p.innerHTML="";p.appendChild(el("h3",null,"Request sent"));p.appendChild(el("p",null,r.message));},function(x){b.disabled=false;e.textContent=x;});};
+      a.appendChild(p);
+    } else { alert2(btn,m); }
+  });
+}
+function alert2(after,m){var e=el("p","err",m);after.after(e);setTimeout(function(){e.remove();},6000);}
+
 function showLostLink(){
   var a=showAlt();a.appendChild(backBtn());
-  var p=panel("Lost your link?");
-  p.appendChild(el("p",null,"Pick your ward and type your name. Your leaders will get an email and text you your link."));
+  var p=panel("Phone got logged out?");
+  p.appendChild(el("p",null,"Open your quorum's join link again and tap your name. If it says you're already set up, pick your ward below and your leaders will get an email to reset you."));
   var wf=field("Your ward","lostWard","select");wf.input.appendChild(new Option("Loading wards…",""));p.appendChild(wf.wrap);
   var nf=field("Your name","lostName","input","First name and last initial");p.appendChild(nf.wrap);
   var e=errLine();var b=el("button","confirm","Ask my leaders");b.type="button";p.appendChild(b);p.appendChild(e);
@@ -353,93 +408,95 @@ function showLostLink(){
   };
   a.appendChild(p);
 }
+
 function showGuide(){
   var a=showAlt();a.appendChild(backBtn());
   var p=panel("Setting up FSY Daily Prep for your ward");
-  p.appendChild(el("p",null,"Takes about 10 minutes. You don't need anyone's help once you have the setup PIN."));
+  p.appendChild(el("p",null,"About 5 minutes. No passwords to remember."));
   var steps=[
-    ["Get the setup PIN","Ask the person who shared FSY Daily Prep with you for the 4-digit setup PIN. It keeps strangers from creating wards."],
-    ["Create your ward","Tap Set up a new ward. Enter your ward name, your young men's first names and last initials, your time zone, your name and email, and choose a 4-digit leader PIN. Write down the ward code and PIN it shows you."],
-    ["Send each young man his invite link","In the leader view, tap Copy link next to each name and text it to him. Send it in a group text with a parent or another leader."],
-    ["Add your other leaders","Under Leaders who can see responses, add the bishop, advisers, and anyone else who should see answers. Add an email to get a 6 PM summary. Copy each leader's link and send it to him."],
-    ["Have the young men save it to their phones","On iPhone: open the link in Safari, tap Share, then Add to Home Screen. Open it from the home screen and tap Turn on for reminders. On Android, Chrome offers to install it."],
-    ["Use their answers on Sunday","Open your leader link before class. Responses shows everything they wrote that week. Quote a few (with permission) in your discussion."]
+    ["Set up your ward","Tap Set up a new ward. Enter your ward name, your name, your email, and your young men's names (you can add them later too)."],
+    ["Share the join link","Your dashboard shows a join link and a QR code. Post the link in your quorum's group chat, or show the QR code in class."],
+    ["Each young man taps his name","He opens the link, taps his name once, and his phone is set up. On iPhone, have him tap Share, then Add to Home Screen, then Get reminders."],
+    ["Add your other leaders","Under Leaders, add each leader's name and email. He gets an email with his sign-in link."],
+    ["Use their answers on Sunday","Your dashboard shows everything they wrote this week. Quote a few (with permission) in class."]
   ];
   var ol=el("ol","guide");
   steps.forEach(function(s){var li=el("li");li.appendChild(el("b",null,s[0]));li.appendChild(el("p",null,s[1]));ol.appendChild(li);});
   p.appendChild(ol);a.appendChild(p);
   var f=panel("Good to know");
-  [["Who sees what","Young men see only first names and check marks. Only your ward's leaders see their answers. Other wards can't see yours."],
-   ["Lost phone or shared link","In the leader view, tap New link next to his name. His old link stops working."],
-   ["Leader released","Remove him under Leaders who can see responses. If he knew the PIN, change it under Codes."],
-   ["Forgot the PIN","Tap Forgot your PIN? on the sign-in screen. Every leader with an email gets his personal sign-in link. Then set a new PIN under Codes."],
-   ["A young man got logged out","He taps Lost your link? on the welcome screen and picks his ward. You get an email; text him his link from the leader view."],
-   ["Same PIN for everyone?","Yes, one PIN per ward. But each leader also has his own leader link that signs him in without the PIN."],
-   ["Reminders","Young men who turn on reminders get one at 4 PM and 8 PM only if they haven't checked in. Leaders with an email get a 6 PM summary."]
+  [["Signing in","Leaders sign in with their email. Tap Leader sign-in, type your email, and open the link we send. Your phone stays signed in."],
+   ["New young man moves in","Tap Add young men on your dashboard and type his name. He taps it on the same join link."],
+   ["Someone moves away","Tap Remove next to his name. His past answers stay in your records."],
+   ["New phone or logged out","Tap Reset next to his name. He opens the join link and taps his name again."],
+   ["Someone took the wrong name","Tap Reset next to that name. Then the right young man can tap it."],
+   ["Who sees what","Young men see only first names and check marks. Only your ward's leaders see their answers."],
+   ["Reminders","Young men who turn on reminders get one at 4 PM and 8 PM only if they haven't checked in. Leaders get a 6 PM email summary."]
   ].forEach(function(x){var d=el("div","faq");d.appendChild(el("b",null,x[0]));d.appendChild(el("p",null,x[1]));f.appendChild(d);});
   a.appendChild(f);
 }
 var leaderFirst=!!LEADER_PARAM;
 function loadApp(){
   if(leaderFirst){leaderFirst=false;showLeaderView();return;}
+  if(!INVITE&&JOIN_PARAM){var jc=JOIN_PARAM;JOIN_PARAM="";showJoin(jc);return;}
   if(!WARD&&!INVITE&&!LEGACY){showWelcome("");return;}
-  run("getData",[WARD,INVITE,LEGACY],function(data){D=data;if(INVITE&&data.youthCode&&!data.ward.isDefault){WARD=data.youthCode;ls("fsy-ward",WARD);}viewing=D.today;renderAll();},function(msg){
+  run("getData",[WARD,INVITE,LEGACY],function(data){
+    D=data;
+    if(INVITE&&data.youthCode&&!data.ward.isDefault){WARD=data.youthCode;ls("fsy-ward",WARD);}
+    if(!INVITE){
+      // older phones: move them onto their own sign-in automatically
+      if(me&&D.roster.indexOf(me)>=0){
+        run("claimName",[LEGACY?"":(WARD||data.youthCode),me,LEGACY],function(res){INVITE=res.invite;ls("fsy-invite",INVITE);tellParent();loadApp();},
+          function(m){showJoin(data.youthCode,m==="TAKEN"?me+" is already set up on another phone. Tap your name, or ask your leaders to reset you.":m);});
+        return;
+      }
+      showJoin(data.youthCode);return;
+    }
+    viewing=D.today;showApp();renderAll();
+  },function(msg){
     if(INVITE){INVITE="";ls("fsy-invite",null);showWelcome(msg);}
     else if(WARD){WARD="";ls("fsy-ward",null);showWelcome(msg);}
-    else if(LEGACY){LEGACY=false;showWelcome("Ask your leader for your personal invite link.");}else{document.getElementById("card").innerHTML="";document.getElementById("card").appendChild(el("div","loading","Couldn't load: "+msg));}
+    else if(LEGACY){LEGACY=false;showWelcome("Open your quorum's join link and tap your name.");}
+    else{document.getElementById("card").innerHTML="";document.getElementById("card").appendChild(el("div","loading","Couldn't load: "+msg));}
   });
 }
 
 function showCodeView(msg){
   var a=showAlt();a.appendChild(backBtn());
-  var p=panel("Enter your ward code");
-  p.appendChild(el("p","small","Your leader gives you this code. You only enter it once on this phone."));
-  var f=field("Ward code","wardCodeIn","input","TIMBERLANE-482");f.input.autocapitalize="characters";p.appendChild(f.wrap);
+  var p=panel("Type your ward code");
+  p.appendChild(el("p","small","It's at the end of your quorum's join link, like GREENSFERRY-417."));
+  var f=field("Ward code","wardCodeIn","input","GREENSFERRY-417");f.input.autocapitalize="characters";p.appendChild(f.wrap);
   var e=errLine();if(msg)e.textContent=msg;
-  var b=el("button","confirm","Open my ward");b.type="button";p.appendChild(b);p.appendChild(e);
-
+  var b=el("button","confirm","Next");b.type="button";p.appendChild(b);p.appendChild(e);
   b.onclick=function(){
     var c=f.input.value.toUpperCase().replace(/[^A-Z0-9]/g,"");
-    if(c.length<4){e.textContent="Enter the code your leader gave you.";return;}
-    b.disabled=true;e.textContent="";
-    run("getData",[c,"",false],function(data){LEGACY=false;INVITE="";ls("fsy-invite",null);WARD=c;ls("fsy-ward",c);me=ls(nameKey());D=data;viewing=D.today;showApp();renderAll();},
-      function(m){b.disabled=false;e.textContent=m;});
+    if(c.length<4){e.textContent="Enter your ward code.";return;}
+    showJoin(c);
   };
   a.appendChild(p);
 }
 
+/* ---------- leaders ---------- */
 function showSetupView(){
   var a=showAlt();a.appendChild(backBtn());
   var p=panel("Set up your ward");
-  p.appendChild(el("p","small","Takes about two minutes. Your young men will only see your ward's names. Only leaders can see their responses."));
+  p.appendChild(el("p","small","Takes about two minutes. You'll go straight to your dashboard, and we'll email you a sign-in link for your other devices."));
   var n=field("Ward name","setupWard","input","Hayden 3rd Ward");p.appendChild(n.wrap);
-  var r=field("Names, one per line (first name and last initial)","setupNames","textarea","Ethan S.\nCaleb R.\nLuke M.");r.input.rows=6;p.appendChild(r.wrap);
+  var yn=field("Your name","setupLeaderName","input","Bro. Smith");p.appendChild(yn.wrap);
+  var ye=field("Your email","setupLeaderEmail","input","name@example.com");ye.input.type="email";p.appendChild(ye.wrap);
   var z=field("Time zone","setupTz","select");p.appendChild(z.wrap);
   var ZL={"America/Los_Angeles":"Pacific","America/Boise":"Mountain (Idaho)","America/Denver":"Mountain","America/Phoenix":"Arizona","America/Chicago":"Central","America/New_York":"Eastern","America/Anchorage":"Alaska","Pacific/Honolulu":"Hawaii"};
   Object.keys(ZL).forEach(function(k){z.input.appendChild(new Option(ZL[k],k));});
-  var yn=field("Your name","setupLeaderName","input","Bro. Smith");p.appendChild(yn.wrap);
-  var ye=field("Your email (for your 6 PM summary and if you forget your PIN)","setupLeaderEmail","input","name@example.com");ye.input.type="email";p.appendChild(ye.wrap);
-  var lpin=field("Choose a 4-digit leader PIN","setupPin","input","4 numbers");lpin.input.inputMode="numeric";lpin.input.autocomplete="off";p.appendChild(lpin.wrap);
+  var r=field("Your young men, one per line (optional, you can add them later)","setupNames","textarea","Ethan S.\nCaleb R.\nLuke M.");r.input.rows=5;p.appendChild(r.wrap);
   var sc=field("Setup PIN (ask the person who shared this with you)","setupCode","input");sc.input.inputMode="numeric";sc.wrap.hidden=true;p.appendChild(sc.wrap);
   run("setupInfo",[],function(info){sc.wrap.hidden=!info.needsCode;},function(){});
   var e=errLine();var b=el("button","confirm","Create my ward");b.type="button";p.appendChild(b);p.appendChild(e);
   b.onclick=function(){
     if(n.input.value.trim().length<3){e.textContent="Enter your ward name.";return;}
-    if(!r.input.value.trim()){e.textContent="Add at least one name.";return;}
     if(!yn.input.value.trim()){e.textContent="Enter your name.";return;}
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ye.input.value.trim())){e.textContent="Enter your email.";return;}
-    if(!/^\d{4}$/.test(lpin.input.value.trim())){e.textContent="Choose a leader PIN that is exactly 4 numbers.";return;}
     b.disabled=true;b.textContent="Creating…";e.textContent="";
-    run("createWard",[n.input.value,r.input.value,z.input.value,sc.input.value,lpin.input.value.trim(),yn.input.value,ye.input.value.trim()],function(res){
-      ls("fsy-leader",res.cred);
-      var a2=showAlt();a2.appendChild(backBtn());
-      var q=panel(res.wardName+" is ready");
-      q.appendChild(el("p",null,"Write these two down. You sign in as a leader with both."));
-      q.appendChild(el("div","lbl","Ward code"));q.appendChild(el("div","codebig",res.youthCode));
-      q.appendChild(el("div","lbl","Leader PIN (keep this private)"));q.appendChild(el("div","codebig",res.leaderPin));
-      q.appendChild(el("p","small","Next: open the leader view and send each young man his own invite link."));
-      var go=el("button","confirm","Open leader view");go.type="button";go.onclick=function(){showLeaderView();};q.appendChild(go);
-      a2.appendChild(q);
+    run("createWard",[n.input.value,r.input.value,z.input.value,sc.input.value,yn.input.value,ye.input.value.trim()],function(res){
+      ls("fsy-leader",res.cred);showLeaderView();
     },function(m){b.disabled=false;b.textContent="Create my ward";e.textContent=m;});
   };
   a.appendChild(p);
@@ -450,32 +507,45 @@ function showLeaderView(){
   var a=showAlt();a.appendChild(backBtn());
   if(!code){
     var p=panel("Leader sign-in");
-    p.appendChild(el("p","small","Enter your ward code and your 4-digit leader PIN. If another leader sent you a leader link, just open that instead."));
-    var wf=field("Ward code","leaderWardIn","input","GREENSFERRY-417");wf.input.autocapitalize="characters";p.appendChild(wf.wrap);
-    var f=field("Leader PIN","leaderCodeIn","input","4 numbers");f.input.inputMode="numeric";f.input.autocomplete="off";p.appendChild(f.wrap);
-    var e=errLine();var b=el("button","confirm","Sign in");b.type="button";p.appendChild(b);p.appendChild(e);
-    var fg=el("button","linkbtn","Forgot your PIN?");fg.type="button";p.appendChild(fg);
-    fg.onclick=function(){
-      var wc=wf.input.value.toUpperCase().replace(/[^A-Z0-9]/g,"");
-      if(!wc){e.textContent="Type your ward code above first, then tap Forgot your PIN? again.";return;}
-      fg.disabled=true;e.textContent="";
-      run("forgotPin",[wc],function(r){fg.disabled=false;e.textContent="";var ok=el("p","small",r.message);fg.after(ok);
-        fg.after(el("p","small","No email on file? Ask another leader in your ward to open his leader link and set a new PIN under Codes."));},
-        function(m){fg.disabled=false;e.textContent=m;});
-    };
+    p.appendChild(el("p",null,"Type your email and we'll send you a sign-in link. Open it on this phone and you'll stay signed in."));
+    var ef=field("Your email","leaderEmailIn","input","name@example.com");ef.input.type="email";ef.input.autocomplete="email";p.appendChild(ef.wrap);
+    var e=errLine();var b=el("button","confirm","Email me a sign-in link");b.type="button";p.appendChild(b);p.appendChild(e);
     b.onclick=function(){
-      var wc=wf.input.value.toUpperCase().replace(/[^A-Z0-9]/g,"");
-      var c=f.input.value.toUpperCase().replace(/[^A-Z0-9]/g,"");
-      if(!c){e.textContent="Enter your leader PIN.";return;}
-      if(!wc&&c.length<8){e.textContent="Enter your ward code too.";return;}
-      var cred=wc?wc+":"+c:c;
+      var v=ef.input.value.trim();
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)){e.textContent="Enter your email.";return;}
       b.disabled=true;e.textContent="";
-      run("leaderData",[cred],function(L){ls("fsy-leader",cred);renderLeader(L);},function(m){b.disabled=false;e.textContent=m;});
+      run("leaderEmailLink",[v],function(r){p.innerHTML="";p.appendChild(el("h3",null,"Check your email"));p.appendChild(el("p",null,r.message));
+        p.appendChild(el("p","small","Don't see it in a few minutes? Ask another leader in your ward to add your email under Leaders."));},
+        function(m){b.disabled=false;e.textContent=m;});
+    };
+    var old=el("button","linkbtn","Sign in with a ward code and PIN instead");old.type="button";p.appendChild(old);
+    old.onclick=function(){
+      old.remove();
+      var wf=field("Ward code","leaderWardIn","input","GREENSFERRY-417");wf.input.autocapitalize="characters";p.appendChild(wf.wrap);
+      var f=field("Leader PIN","leaderCodeIn","input","4 numbers");f.input.inputMode="numeric";f.input.autocomplete="off";p.appendChild(f.wrap);
+      var e2=errLine();var b2=el("button","btn2","Sign in");b2.type="button";p.appendChild(b2);p.appendChild(e2);
+      b2.onclick=function(){
+        var wc=wf.input.value.toUpperCase().replace(/[^A-Z0-9]/g,""),c=f.input.value.toUpperCase().replace(/[^A-Z0-9]/g,"");
+        if(!c){e2.textContent="Enter your PIN.";return;}
+        var cred=wc?wc+":"+c:c;b2.disabled=true;e2.textContent="";
+        run("leaderData",[cred],function(L){ls("fsy-leader",cred);renderLeader(L);},function(m){b2.disabled=false;e2.textContent=m;});
+      };
     };
     a.appendChild(p);return;
   }
   a.appendChild(el("div","loading","Loading your ward…"));
   run("leaderData",[code],renderLeader,function(m){ls("fsy-leader",null);showLeaderView();});
+}
+
+function confirmBtn(label,yesLabel,onYes,host){
+  var b=el("button","btn2"+(label==="Remove"?" danger":""),label);b.type="button";
+  b.onclick=function(){
+    var w=el("span","row2");var y=el("button","btn2 danger",yesLabel);y.type="button";var n=el("button","btn2","Cancel");n.type="button";
+    w.appendChild(y);w.appendChild(n);host.replaceChild(w,b);
+    n.onclick=function(){host.replaceChild(b,w);};
+    y.onclick=function(){y.disabled=true;onYes();};
+  };
+  return b;
 }
 
 function renderLeader(L){
@@ -484,133 +554,118 @@ function renderLeader(L){
   var top=el("div","row2");top.style.justifyContent="space-between";top.appendChild(backBtn());
   var so=el("button","linkbtn","Sign out");so.type="button";so.onclick=function(){ls("fsy-leader",null);showLeaderView();};top.appendChild(so);a.appendChild(top);
   a.appendChild(el("h2",null,L.ward.name));
+  var err=errLine();a.appendChild(err);
+  function fail(m){err.textContent=m;window.scrollTo(0,0);}
 
-  var share=panel("Invite your young men");
-  share.appendChild(el("p","small","Send each young man his own link. It sets up his phone as him, so he never picks a name and nobody can check in for him. Text it in a group with a parent or another leader."));
-  var il=el("div","rlist");
-  (L.invites||[]).forEach(function(v){
-    var row=el("div");row.appendChild(el("span",null,v.name));
-    var bx=el("span","row2");
-    var cpb=el("button","btn2","Copy link");cpb.type="button";
-    cpb.onclick=function(){
-      copyOrShow(cpb,"Here's your FSY Daily Prep link, "+v.name+". Tap it once and it's set up on your phone: "+v.link,row);
-    };
-    var nb=el("button","btn2","New link");nb.type="button";
-    nb.onclick=function(){
-      var yes=el("button","btn2 danger","Yes, new link");yes.type="button";bx.replaceChild(yes,nb);
-      yes.onclick=function(){yes.disabled=true;run("leaderResetInvite",[code,v.name],renderLeader,function(m){alertInv.textContent=m;});};
-    };
-    bx.appendChild(cpb);bx.appendChild(nb);row.appendChild(bx);il.appendChild(row);
-  });
-  share.appendChild(il);var alertInv=errLine();share.appendChild(alertInv);
-  share.appendChild(el("p","small","\"New link\" stops his old link from working. Use it if he loses his phone or the link gets shared."));
-  share.appendChild(el("div","lbl","Ward link (anyone can pick a name)"));
-  share.appendChild(copyRow(L.ward.link));
-  share.appendChild(el("p","small",L.ward.isDefault?"This is the main app link. No code needed.":"Youth code: "+L.ward.youthCode));
-  a.appendChild(share);
+  // 1. Invite: one link + QR for the whole quorum
+  var inv=panel("Invite your quorum");
+  inv.appendChild(el("p",null,"Post this link in your quorum's group chat, or show the code in class. Each young man opens it and taps his name once."));
+  var qr=el("div","qr");inv.appendChild(qr);
+  try{new QRCode(qr,{text:L.joinLink,width:180,height:180,correctLevel:QRCode.CorrectLevel.M});}catch(x){qr.remove();}
+  var cr=el("div","row2");var ci=el("input");ci.readOnly=true;ci.value=L.joinLink;ci.onclick=function(){ci.select();};
+  var cb=el("button","btn2","Copy link");cb.type="button";cb.onclick=function(){copyOrShow(cb,L.joinLink,cr);};
+  cr.appendChild(ci);cr.appendChild(cb);inv.appendChild(cr);
+  a.appendChild(inv);
 
+  // 2. Young men: status, this week, add/remove/reset
   var wk=weekOf(L.today);
-  var g=panel("This week");var gw=el("div","grid");var t=el("table");var hr=el("tr");hr.appendChild(el("th",null,"Name"));
-  wk.forEach(function(d){hr.appendChild(el("th",null,fmt(d,{weekday:"narrow"})));});hr.appendChild(el("th",null,"Week"));t.appendChild(hr);
-  L.roster.forEach(function(n){
-    var tr=el("tr");tr.appendChild(el("td",null,n));var c=0;
-    wk.forEach(function(d){var has=L.checkins.some(function(x){return x.name===n&&x.date===d;});if(has)c++;
-      tr.appendChild(el("td",has?"y":(d>L.today?"":"n"),has?"✓":(d>L.today?"":"–")));});
-    tr.appendChild(el("td",null,String(c)));t.appendChild(tr);
+  var done={};L.checkins.forEach(function(c){done[c.name+"|"+c.date]=1;});
+  var joinedN=L.boys.filter(function(b){return b.joined;}).length;
+  var ym=panel("Young men ("+L.boys.length+")");
+  ym.appendChild(el("p","small",joinedN+" of "+L.boys.length+" have joined. Dots show this week's check-ins."));
+  var list=el("div","boys");
+  L.boys.forEach(function(b){
+    var row=el("div","boy");
+    var left=el("div","boyname");left.appendChild(el("span",null,b.name));
+    left.appendChild(el("span","chip2 "+(b.joined?"ok":"wait"),b.joined?"Joined":"Not joined yet"));
+    var dots=el("span","dots2");var n=0;
+    wk.forEach(function(d){var has=done[b.name+"|"+d];if(has)n++;var s=el("span","d2"+(has?" on":"")+(d>L.today?" fut":""));s.title=fmt(d,{weekday:"short"});dots.appendChild(s);});
+    left.appendChild(dots);
+    row.appendChild(left);
+    var acts=el("span","row2 acts");
+    if(b.joined)acts.appendChild(confirmBtn("Reset","Yes, reset",function(){run("leaderResetBoy",[code,b.name],renderLeader,fail);},acts));
+    acts.appendChild(confirmBtn("Remove","Yes, remove",function(){run("leaderRemoveName",[code,b.name],renderLeader,fail);},acts));
+    row.appendChild(acts);list.appendChild(row);
   });
-  gw.appendChild(t);g.appendChild(gw);if(!L.roster.length)g.appendChild(el("p","small","Add names below to get started."));a.appendChild(g);
+  if(!L.boys.length)list.appendChild(el("p","small","No names yet. Add your young men below."));
+  ym.appendChild(list);
+  var addT=el("textarea");addT.id="addNames";addT.rows=2;addT.placeholder="Add young men, one per line";
+  var addB=el("button","btn2","Add");addB.type="button";
+  var ar=el("div","row2");ar.appendChild(addT);ar.appendChild(addB);ym.appendChild(ar);
+  addB.onclick=function(){if(!addT.value.trim()){fail("Type a name to add.");return;}addB.disabled=true;run("leaderAddNames",[code,addT.value],renderLeader,function(m){addB.disabled=false;fail(m);});};
+  ym.appendChild(el("p","small","Reset: new phone or logged out (he taps his name again). Remove: moved away (his past answers are kept)."));
+  a.appendChild(ym);
 
+  // 3. Responses
   var rp=panel("Responses");var sel=el("select");sel.id="respRange";
   [["week","This week"],["14","Last 14 days"],["all","Everything"]].forEach(function(o){sel.appendChild(new Option(o[1],o[0]));});
   var box=el("div");rp.appendChild(sel);rp.appendChild(box);
   function drawResp(){
     box.innerHTML="";var from=sel.value==="week"?wk[0]:sel.value==="14"?shift(L.today,-13):"0000";
-    var list=L.checkins.filter(function(c){return c.date>=from;}).slice().reverse();
-    if(!list.length){box.appendChild(el("p","small","No responses in this range yet."));return;}
-    list.forEach(function(c){var d=el("div","resp");
+    var lst=L.checkins.filter(function(c){return c.date>=from;}).slice().reverse();
+    if(!lst.length){box.appendChild(el("p","small","No responses in this range yet."));return;}
+    lst.forEach(function(c){var d=el("div","resp");
       d.appendChild(el("div","meta",c.name+" · "+fmt(c.date,{weekday:"short",month:"short",day:"numeric"})+(L.titles[c.date]?" · "+L.titles[c.date]:"")));
       d.appendChild(el("p",null,c.thought));box.appendChild(d);});
   }
   sel.onchange=drawResp;drawResp();a.appendChild(rp);
 
-  var ro=panel("Roster");var rl=el("div","rlist");
-  L.roster.forEach(function(n){
-    var row=el("div");row.appendChild(el("span",null,n));
-    var rm=el("button","btn2 danger","Remove");rm.type="button";
-    rm.onclick=function(){
-      var yes=el("button","btn2 danger","Yes, remove");yes.type="button";var no=el("button","btn2","Cancel");no.type="button";
-      var w=el("span","row2");w.appendChild(yes);w.appendChild(no);row.replaceChild(w,rm);
-      no.onclick=function(){row.replaceChild(rm,w);};
-      yes.onclick=function(){yes.disabled=true;run("leaderRemoveName",[code,n],renderLeader,function(m){alertLine.textContent=m;});};
-    };
-    row.appendChild(rm);rl.appendChild(row);
-  });
-  ro.appendChild(rl);
-  var add=el("div","row2");var ai=el("input");ai.id="addName";ai.placeholder="New name";var ab=el("button","btn2","Add");ab.type="button";
-  add.appendChild(ai);add.appendChild(ab);ro.appendChild(add);var alertLine=errLine();ro.appendChild(alertLine);
-  ab.onclick=function(){if(!ai.value.trim()){alertLine.textContent="Enter a name.";return;}ab.disabled=true;
-    run("leaderAddName",[code,ai.value],renderLeader,function(m){ab.disabled=false;alertLine.textContent=m;});};
-  a.appendChild(ro);
-
-  var lp=panel("Leaders who can see responses");
-  lp.appendChild(el("p","small","Give each leader his own link. It opens this page directly. Remove someone when he's released and his link stops working."));
+  // 4. Leaders
+  var lp=panel("Leaders");
+  lp.appendChild(el("p","small","Everyone here can see responses and gets the 6 PM summary. Adding a leader emails him his sign-in link."));
   var ll=el("div","rlist");
   (L.leaders||[]).forEach(function(v){
-    var row=el("div");var nm=el("span",null,v.name);if(v.email){nm.appendChild(el("span","small"," · daily email"));}row.appendChild(nm);var bx=el("span","row2");
-    var cpb=el("button","btn2","Copy link");cpb.type="button";
-    cpb.onclick=function(){
-      copyOrShow(cpb,"Here's your leader link for FSY Daily Prep: "+v.link+" (keep it private, it shows the young men's responses)",row);
-    };
-    var rb=el("button","btn2 danger","Remove");rb.type="button";
-    rb.onclick=function(){var yes=el("button","btn2 danger","Yes, remove");yes.type="button";bx.replaceChild(yes,rb);
-      yes.onclick=function(){yes.disabled=true;run("leaderRemoveLeader",[code,v.name],renderLeader,function(m){la.textContent=m;});};};
-    bx.appendChild(cpb);bx.appendChild(rb);row.appendChild(bx);ll.appendChild(row);
+    var row=el("div");var nm=el("span",null,v.name);if(v.email)nm.appendChild(el("span","small"," · "+v.email));row.appendChild(nm);
+    var bx=el("span","row2");bx.appendChild(confirmBtn("Remove","Yes, remove",function(){run("leaderRemoveLeader",[code,v.name],renderLeader,fail);},bx));
+    row.appendChild(bx);ll.appendChild(row);
   });
-  if(!(L.leaders||[]).length)ll.appendChild(el("p","small","No personal leader links yet."));
   lp.appendChild(ll);
-  var lad=el("div","row2");var lin=el("input");lin.id="addLeader";lin.placeholder="Leader's name, like Bro. Smith";
-  var lem=el("input");lem.id="addLeaderEmail";lem.type="email";lem.placeholder="Email for a 6 PM summary (optional)";
+  var lad=el("div","row2");var lin=el("input");lin.id="addLeader";lin.placeholder="Name, like Bro. Smith";
+  var lem=el("input");lem.id="addLeaderEmail";lem.type="email";lem.placeholder="Email";
   var lab=el("button","btn2","Add leader");lab.type="button";
-  lad.appendChild(lin);lad.appendChild(lem);lad.appendChild(lab);lp.appendChild(lad);var la=errLine();lp.appendChild(la);
-  lp.appendChild(el("p","small","Leaders with an email get a short note at 6 PM listing who hasn't checked in. To change an email, remove the leader and add him again."));
-  lab.onclick=function(){if(!lin.value.trim()){la.textContent="Enter the leader's name.";return;}lab.disabled=true;
-    run("leaderAddLeader",[code,lin.value,lem.value],renderLeader,function(m){lab.disabled=false;la.textContent=m;});};
+  lad.appendChild(lin);lad.appendChild(lem);lad.appendChild(lab);lp.appendChild(lad);
+  lab.onclick=function(){
+    if(!lin.value.trim()){fail("Enter the leader's name.");return;}
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lem.value.trim())){fail("Enter the leader's email.");return;}
+    lab.disabled=true;run("leaderAddLeader",[code,lin.value,lem.value.trim()],renderLeader,function(m){lab.disabled=false;fail(m);});
+  };
   a.appendChild(lp);
 
-  var cp=panel("Codes");
-  cp.appendChild(el("p","small","Ward code: "+L.ward.youthCode+". Leaders sign in with the ward code plus the leader PIN."));
-  var pr=el("div","row2");var pi=el("input");pi.id="newPin";pi.inputMode="numeric";pi.autocomplete="off";pi.placeholder="New 4-digit PIN";
-  var pb=el("button","btn2","Change leader PIN");pb.type="button";pr.appendChild(pi);pr.appendChild(pb);cp.appendChild(pr);
-  pb.onclick=function(){
-    if(!/^\d{4}$/.test(pi.value.trim())){cl.textContent="Enter exactly 4 numbers.";return;}
-    pb.disabled=true;cl.textContent="";
-    run("leaderSetPin",[code,pi.value.trim()],function(res){
-      if(String(code).indexOf(":")>=0||String(code).length<12){ls("fsy-leader",res.cred);code=res.cred;}
-      pb.disabled=false;pi.value="";cl.textContent="";pr.after(el("p","small","PIN changed to "+res.pin+". Tell your other leaders who sign in with the PIN."));
-    },function(m){pb.disabled=false;cl.textContent=m;});
-  };
-  cp.appendChild(el("p","small","If the ward code gets shared too widely, make a new one. The old one stops working right away."));
-  var cl=errLine();
-  function codeBtn(label,which,warn){
-    var b=el("button","btn2",label);b.type="button";
-    b.onclick=function(){
-      var yes=el("button","btn2 danger","Yes, make a new code");yes.type="button";
-      var w=el("div");w.appendChild(el("p","small",warn));w.appendChild(yes);b.replaceWith(w);
-      yes.onclick=function(){yes.disabled=true;run("leaderNewCode",[code,which],function(nc){
-        if(which==="leader"){ls("fsy-leader",nc);}
-        w.innerHTML="";w.appendChild(el("p",null,"New ward code:"));w.appendChild(el("div","codebig",nc));
-        if(String(code).indexOf(":")>=0){var pinPart=String(code).split(":")[1];code=nc.replace(/[^A-Z0-9]/g,"")+":"+pinPart;ls("fsy-leader",code);}
-      },function(m){cl.textContent=m;});};
-    };
-    return b;
-  }
-  cp.appendChild(codeBtn("New ward code","youth","Leaders will sign in with the new ward code. Young men using invite links aren't affected."));
-  cp.appendChild(cl);a.appendChild(cp);
+  // 5. Small print: change the join link if it spreads too far
+  var cp=panel(null);
+  cp.appendChild(el("p","small","Join link shared too widely? Make a new one. The old link stops working; young men already set up aren't affected."));
+  var nb=el("span","row2");nb.appendChild(confirmBtn("New join link","Yes, make a new one",function(){run("leaderNewCode",[code,"youth"],function(){run("leaderData",[code],renderLeader,fail);},fail);},nb));
+  cp.appendChild(nb);a.appendChild(cp);
 }
 
-document.getElementById("lnkCode").onclick=function(){showCodeView("");};
+document.getElementById("lnkCode").onclick=function(){if(D&&INVITE){showApp();}else{showWelcome("");}};
 document.getElementById("lnkLeader").onclick=showLeaderView;
-document.getElementById("lnkSetup").onclick=showSetupView;
+document.getElementById("lnkSetup").onclick=showGuide;
+document.getElementById("lnkFeedback").onclick=showFeedback;
+var lastScreen="today's reading";
+function showFeedback(){
+  var where=(alt.hidden?"today's reading":((alt.querySelector("h3,h2")||{}).textContent||"a screen"))+(D&&D.ward?" · "+D.ward.name:"");
+  var a=showAlt();a.appendChild(backBtn());
+  var p=panel("Send feedback");
+  p.appendChild(el("p","small","Found something broken, or have an idea? It goes straight to the person who runs FSY Daily Prep."));
+  var kind="problem";
+  var kr=el("div","row2");
+  var k1=el("button","btn2 picked","Something's broken");k1.type="button";
+  var k2=el("button","btn2","I have an idea");k2.type="button";
+  k1.onclick=function(){kind="problem";k1.className="btn2 picked";k2.className="btn2";};
+  k2.onclick=function(){kind="idea";k2.className="btn2 picked";k1.className="btn2";};
+  kr.appendChild(k1);kr.appendChild(k2);p.appendChild(kr);
+  var m=field("What happened, or what's your idea?","fbMsg","textarea","");m.input.rows=4;p.appendChild(m.wrap);
+  var c=field("Your email, if you'd like a reply (optional)","fbContact","input","");c.input.type="email";p.appendChild(c.wrap);
+  var e=errLine();var b=el("button","confirm","Send");b.type="button";p.appendChild(b);p.appendChild(e);
+  b.onclick=function(){
+    if(m.input.value.trim().length<5){e.textContent="Tell us a little more first.";return;}
+    b.disabled=true;e.textContent="";
+    run("sendFeedback",[kind,m.input.value,c.input.value,where+" · "+navigator.userAgent.slice(0,120)],function(r){p.innerHTML="";p.appendChild(el("h3",null,"Sent"));p.appendChild(el("p",null,r.message));},
+      function(x){b.disabled=false;e.textContent=x;});
+  };
+  a.appendChild(p);
+}
 loadApp();
 
 </script>
