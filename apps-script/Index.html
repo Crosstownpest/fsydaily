@@ -169,6 +169,8 @@ if (LEADER_PARAM) { ls("fsy-leader", LEADER_PARAM); setTimeout(function(){tellPa
 var INVITE = INVITE_PARAM || ls("fsy-invite") || "";
 if (INVITE_PARAM) ls("fsy-invite", INVITE_PARAM);
 var D=null, me=ls(nameKey()), viewing=null, saving=false, errMsg="";
+// LEADER_VIEW: a signed-in leader looking at the reading without checking in himself. LEADER_JC: his ward's join code.
+var LEADER_VIEW=false, LEADER_JC="";
 var LEGACY = !WARD && !INVITE && !!ls("fsy-name");
 function tellParent(){try{window.top.postMessage({fsy:{i:INVITE,w:WARD,n:me||"",L:ls("fsy-leader")||""}},"*");}catch(e){}}
 // fsydaily.com keeps a copy of the leader sign-in, so leaders stay signed in even if this frame's storage gets cleared.
@@ -233,6 +235,15 @@ function renderWho(){
     if(ls("fsy-leader")){var db=el("button","btn2","Dashboard ›");db.type="button";db.onclick=showLeaderView;box.appendChild(db);}
     return;
   }
+  if(LEADER_VIEW&&!INVITE){
+    box.className="whoami set";
+    box.appendChild(el("span",null,"Leader view: what your young men see today"));
+    var lb=el("span","row2");
+    var cm=el("button","linkbtn","Check in myself");cm.type="button";
+    cm.onclick=function(){showJoin(D.youthCode,"OLD:Tap your own name. Leaders don't need a reset. Not on the list? Add yourself under Young men on your dashboard.");};
+    var dv=el("button","btn2","Dashboard ›");dv.type="button";dv.onclick=showLeaderView;
+    lb.appendChild(cm);lb.appendChild(dv);box.appendChild(lb);return;
+  }
   if(me&&D.roster.indexOf(me)>=0){
     box.className="whoami set";
     box.appendChild(el("span",null,"Checking in as "+me));
@@ -267,6 +278,7 @@ function renderCard(){
   var mine=me?daysFor(me):{};
   if(mine[viewing]){foot.appendChild(el("div","done","✓ Checked in "+(viewing===D.today?"today":"for this day")+". See you Sunday."));return;}
   if(viewing!==D.today){foot.appendChild(el("p","small",viewing<D.today?"Check-ins count on the day of the reading. Today's reading is waiting for you.":"This reading opens on "+fmt(viewing,{weekday:"long"})+"."));return;}
+  if(!INVITE&&LEADER_VIEW){foot.appendChild(el("p","small","Young men check in here with a short comment. Their answers show up on your dashboard."));return;}
   if(!INVITE){foot.appendChild(el("p","small","Set up this phone first (button at the top) so your check-in counts."));return;}
   var lab=el("label",null,"What stood out to you, or what will you bring Sunday? (required, your adviser can see this)");lab.htmlFor="thoughtInput";foot.appendChild(lab);
   var ta=el("textarea");ta.id="thoughtInput";ta.maxLength=400;ta.placeholder="One or two sentences...";foot.appendChild(ta);
@@ -339,7 +351,9 @@ function showWelcome(msg){
   hero.appendChild(el("p","mission","Helping young men come to Sunday ready. A few minutes each day with the scriptures and the For the Strength of Youth lesson, so every quorum discussion starts with something real to share."));
   a.appendChild(hero);
   if(ls("fsy-leader")){
-    var me2=panel(null);var od=el("button","confirm","Open my leader dashboard");od.type="button";od.onclick=showLeaderView;me2.appendChild(od);a.appendChild(me2);
+    var me2=panel(null);var od=el("button","confirm","Open my leader dashboard");od.type="button";od.onclick=showLeaderView;me2.appendChild(od);
+    var rd2=el("button","btn2","See today's reading");rd2.type="button";rd2.onclick=function(){openLeaderReading();};me2.appendChild(rd2);
+    a.appendChild(me2);
   }
   var p=panel("Young men");
   p.appendChild(el("p",null,"Open the join link your leader shared, or scan the QR code in class, then tap your name. That's it."));
@@ -456,7 +470,8 @@ function loadApp(){
           function(m){showJoin(data.youthCode,m==="TAKEN"?me+" is already set up on another phone. Tap your name, or ask your leaders to reset you.":m);});
         return;
       }
-      showJoin(data.youthCode);return;
+      if(!ls("fsy-leader")){showJoin(data.youthCode);return;}
+      LEADER_VIEW=true;
     }
     viewing=D.today;showApp();renderAll();
   },function(msg){
@@ -533,6 +548,21 @@ function showLeaderView(){
   run("leaderData",[code],renderLeader,function(m){ls("fsy-leader",null);showLeaderView();});
 }
 
+// Leaders go straight to the reading. No name to tap unless they want to check in themselves.
+function openLeaderReading(){
+  if(INVITE){if(D)showApp();else loadApp();return;}
+  if(D&&LEADER_VIEW&&D.youthCode===LEADER_JC){showApp();return;}
+  if(!LEADER_JC){
+    var code=ls("fsy-leader");if(!code){loadApp();return;}
+    var a=showAlt();a.appendChild(el("div","loading","Loading today's reading…"));
+    run("leaderData",[code],function(L){LEADER_JC=(String(L.joinLink||"").match(/[?&]j=([^&]+)/)||[])[1]||"";if(LEADER_JC)openLeaderReading();else showLeaderView();},function(){showLeaderView();});
+    return;
+  }
+  var a2=showAlt();a2.appendChild(el("div","loading","Loading today's reading…"));
+  run("getData",[LEADER_JC,"",false],function(data){D=data;LEADER_VIEW=true;viewing=D.today;showApp();renderAll();},
+    function(m){var a3=showAlt();a3.appendChild(backBtn());a3.appendChild(el("p","err",m));});
+}
+
 function confirmBtn(label,yesLabel,onYes,host){
   var b=el("button","btn2"+(label==="Remove"?" danger":""),label);b.type="button";
   b.onclick=function(){
@@ -548,13 +578,9 @@ function renderLeader(L){
   var code=ls("fsy-leader");
   var a=showAlt();
   var top=el("div","row2");top.style.justifyContent="space-between";
-  var mr=el("button","linkbtn","‹ My reading");mr.type="button";
-  mr.onclick=function(){
-    if(INVITE&&D){showApp();return;}
-    if(INVITE){loadApp();return;}
-    var jc=(String(L.joinLink||"").match(/[?&]j=([^&]+)/)||[])[1]||"";
-    if(jc)showJoin(jc,"Tap your own name to see your reading. Leaders don't need a reset.");else loadApp();
-  };
+  LEADER_JC=(String(L.joinLink||"").match(/[?&]j=([^&]+)/)||[])[1]||"";
+  var mr=el("button","linkbtn","‹ Today's reading");mr.type="button";
+  mr.onclick=function(){openLeaderReading();};
   top.appendChild(mr);
   var so=el("button","linkbtn","Sign out");so.type="button";so.onclick=function(){ls("fsy-leader",null);tellParent();showLeaderView();};top.appendChild(so);a.appendChild(top);
   a.appendChild(el("h2",null,L.ward.name));
@@ -642,7 +668,7 @@ function renderLeader(L){
   cp.appendChild(nb);a.appendChild(cp);
 }
 
-document.getElementById("lnkCode").onclick=function(){if(D&&INVITE){showApp();}else{showWelcome("");}};
+document.getElementById("lnkCode").onclick=function(){if(D&&(INVITE||LEADER_VIEW)){showApp();}else{showWelcome("");}};
 document.getElementById("lnkLeader").onclick=showLeaderView;
 document.getElementById("lnkSetup").onclick=showGuide;
 document.getElementById("lnkFeedback").onclick=showFeedback;
