@@ -384,7 +384,7 @@ function createWard(wardName, namesText, tz, setupCode, leaderName, leaderEmail)
   tooMany_('fail_create');
   if (setupCode_()) {
     tooMany_('fail_setup');
-    if (norm_(setupCode) !== norm_(setupCode_())) { failed_('fail_setup'); throw new Error("That setup PIN didn't work. Ask the person who shared FSY Daily Prep with you."); }
+    if (norm_(setupCode) !== norm_(setupCode_())) { failed_('fail_setup'); throw new Error("That setup code didn't work. Ask the person who shared FSY Daily Prep with you."); }
   }
   const pin = String(1000 + Math.floor(Math.random() * 9000));   // backup only; leaders sign in by email
   leaderName = clean_(leaderName, 40);

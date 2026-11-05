@@ -334,10 +334,10 @@ function showWelcome(msg){
     var me2=panel(null);var od=el("button","confirm","Open my leader dashboard");od.type="button";od.onclick=showLeaderView;me2.appendChild(od);a.appendChild(me2);
   }
   var p=panel("Young men");
-  p.appendChild(el("p",null,"Open the join link your leader shared, or scan the code in class, then tap your name. That's it. No password."));
+  p.appendChild(el("p",null,"Open the join link your leader shared, or scan the QR code in class, then tap your name. That's it."));
   if(msg)p.appendChild(el("p","err",msg));
   var yr=el("div","row2");
-  var b1=el("button","btn2","Type my ward code");b1.type="button";b1.onclick=function(){showCodeView("");};
+  var b1=el("button","btn2","I don't have the link");b1.type="button";b1.onclick=function(){showCodeView("");};
   var b0=el("button","btn2","My phone got logged out");b0.type="button";b0.onclick=showLostLink;
   yr.appendChild(b1);yr.appendChild(b0);p.appendChild(yr);
   a.appendChild(p);
@@ -412,7 +412,7 @@ function showLostLink(){
 function showGuide(){
   var a=showAlt();a.appendChild(backBtn());
   var p=panel("Setting up FSY Daily Prep for your ward");
-  p.appendChild(el("p",null,"About 5 minutes. No passwords to remember."));
+  p.appendChild(el("p",null,"About 5 minutes. Nothing to remember: leaders sign in with their email, and young men just tap their name."));
   var steps=[
     ["Set up your ward","Tap Set up a new ward. Enter your ward name, your name, your email, and your young men's names (you can add them later too)."],
     ["Share the join link","Your dashboard shows a join link and a QR code. Post the link in your quorum's group chat, or show the QR code in class."],
@@ -462,14 +462,15 @@ function loadApp(){
 
 function showCodeView(msg){
   var a=showAlt();a.appendChild(backBtn());
-  var p=panel("Type your ward code");
-  p.appendChild(el("p","small","It's at the end of your quorum's join link, like GREENSFERRY-417."));
-  var f=field("Ward code","wardCodeIn","input","GREENSFERRY-417");f.input.autocapitalize="characters";p.appendChild(f.wrap);
+  var p=panel("Don't have the link?");
+  p.appendChild(el("p",null,"Ask your leader to post your quorum's join link in your group chat, or scan the QR code at church."));
+  p.appendChild(el("p","small","If you know the letters at the end of the link (like GREENSFERRY-417), you can type them here."));
+  var f=field("Letters at the end of the link","wardCodeIn","input","GREENSFERRY-417");f.input.autocapitalize="characters";p.appendChild(f.wrap);
   var e=errLine();if(msg)e.textContent=msg;
   var b=el("button","confirm","Next");b.type="button";p.appendChild(b);p.appendChild(e);
   b.onclick=function(){
     var c=f.input.value.toUpperCase().replace(/[^A-Z0-9]/g,"");
-    if(c.length<4){e.textContent="Enter your ward code.";return;}
+    if(c.length<4){e.textContent="Type the letters from the end of the link.";return;}
     showJoin(c);
   };
   a.appendChild(p);
@@ -487,7 +488,7 @@ function showSetupView(){
   var ZL={"America/Los_Angeles":"Pacific","America/Boise":"Mountain (Idaho)","America/Denver":"Mountain","America/Phoenix":"Arizona","America/Chicago":"Central","America/New_York":"Eastern","America/Anchorage":"Alaska","Pacific/Honolulu":"Hawaii"};
   Object.keys(ZL).forEach(function(k){z.input.appendChild(new Option(ZL[k],k));});
   var r=field("Your young men, one per line (optional, you can add them later)","setupNames","textarea","Ethan S.\nCaleb R.\nLuke M.");r.input.rows=5;p.appendChild(r.wrap);
-  var sc=field("Setup PIN (ask the person who shared this with you)","setupCode","input");sc.input.inputMode="numeric";sc.wrap.hidden=true;p.appendChild(sc.wrap);
+  var sc=field("Setup code (ask the person who shared this with you)","setupCode","input");sc.input.inputMode="numeric";sc.wrap.hidden=true;p.appendChild(sc.wrap);
   run("setupInfo",[],function(info){sc.wrap.hidden=!info.needsCode;},function(){});
   var e=errLine();var b=el("button","confirm","Create my ward");b.type="button";p.appendChild(b);p.appendChild(e);
   b.onclick=function(){
@@ -517,19 +518,6 @@ function showLeaderView(){
       run("leaderEmailLink",[v],function(r){p.innerHTML="";p.appendChild(el("h3",null,"Check your email"));p.appendChild(el("p",null,r.message));
         p.appendChild(el("p","small","Don't see it in a few minutes? Ask another leader in your ward to add your email under Leaders."));},
         function(m){b.disabled=false;e.textContent=m;});
-    };
-    var old=el("button","linkbtn","Sign in with a ward code and PIN instead");old.type="button";p.appendChild(old);
-    old.onclick=function(){
-      old.remove();
-      var wf=field("Ward code","leaderWardIn","input","GREENSFERRY-417");wf.input.autocapitalize="characters";p.appendChild(wf.wrap);
-      var f=field("Leader PIN","leaderCodeIn","input","4 numbers");f.input.inputMode="numeric";f.input.autocomplete="off";p.appendChild(f.wrap);
-      var e2=errLine();var b2=el("button","btn2","Sign in");b2.type="button";p.appendChild(b2);p.appendChild(e2);
-      b2.onclick=function(){
-        var wc=wf.input.value.toUpperCase().replace(/[^A-Z0-9]/g,""),c=f.input.value.toUpperCase().replace(/[^A-Z0-9]/g,"");
-        if(!c){e2.textContent="Enter your PIN.";return;}
-        var cred=wc?wc+":"+c:c;b2.disabled=true;e2.textContent="";
-        run("leaderData",[cred],function(L){ls("fsy-leader",cred);renderLeader(L);},function(m){b2.disabled=false;e2.textContent=m;});
-      };
     };
     a.appendChild(p);return;
   }
