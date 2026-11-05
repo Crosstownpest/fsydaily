@@ -8,15 +8,16 @@
 <meta name="apple-mobile-web-app-title" content="FSY Prep">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#1d3047">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#eef1f4">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="manifest" href="/manifest.webmanifest">
 <style>
   [hidden] { display: none !important; }
-  html, body { margin: 0; height: 100%; background: #1d3047; }
-  #app { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: #eef1f4; }
+  html, body { margin: 0; height: 100%; background: #eef1f4; }
+  #app { position: fixed; top: env(safe-area-inset-top, 0px); left: 0; right: 0; bottom: 0; width: 100%;
+         height: calc(100% - env(safe-area-inset-top, 0px)); border: 0; background: #eef1f4; }
   .bar { position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 2;
          display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 12px;
          background: #1d3047; color: #eef2f6; font: 15px/1.4 -apple-system, system-ui, sans-serif;
