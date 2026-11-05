@@ -80,6 +80,7 @@
     if (typeof d.i === "string") { set("fsy-i", clean(d.i, 16).toUpperCase()); invite = get("fsy-i"); }
     if (typeof d.w === "string") set("fsy-w", clean(d.w, 24).toUpperCase());
     if (typeof d.n === "string") set("fsy-n", clean(d.n, 40));
+    if (d.askReminders) askReminders();
   });
 
   /* ---------- home screen + reminders ---------- */
@@ -108,6 +109,41 @@
         .then(save).then(function () { txt.textContent = "Reminders are on. You'll only get one if you haven't checked in."; go.hidden = true; set("fsy-remind-asked", "1");
           setTimeout(function () { document.getElementById("remind").hidden = true; }, 4000); });
     }).catch(function () { txt.textContent = "That didn't work. Try again in a minute."; go.disabled = false; });
+  }
+
+  // The app's "Get reminders" button lands here. The phone only allows the permission prompt from a tap on this page,
+  // so we show a bar with our own button (or the right instructions for this phone).
+  function bar(text, button) {
+    var b = document.getElementById("remind"), go = document.getElementById("remindGo");
+    document.getElementById("remindText").textContent = text;
+    go.hidden = !button; go.disabled = false;
+    if (button) go.onclick = turnOn;
+    document.getElementById("remindX").onclick = function () { b.hidden = true; };
+    document.getElementById("tip").hidden = true;
+    b.hidden = false;
+  }
+  function askReminders() {
+    if (ios && !standalone) {
+      var tip = document.getElementById("tip");
+      document.getElementById("remind").hidden = true;
+      tip.hidden = false;
+      document.getElementById("tipX").onclick = function () { tip.hidden = true; };
+      return;
+    }
+    if (!canPush || !reg) { bar("This browser can't do reminders. On iPhone use Safari, on Android use Chrome.", false); return; }
+    if (Notification.permission === "denied") {
+      bar(ios ? "Reminders are blocked. Go to Settings > Notifications > FSY Prep and turn on Allow Notifications."
+              : "Reminders are blocked. Tap the lock icon by the address bar and allow notifications.", false);
+      return;
+    }
+    reg.pushManager.getSubscription().then(function (sub) {
+      if (sub && Notification.permission === "granted") {
+        save(sub).catch(function () {});
+        bar("Reminders are on. You'll only get one on days you haven't checked in.", false);
+      } else {
+        bar("Get a reminder on days you haven't checked in yet?", true);
+      }
+    });
   }
 
   if (canPush) {
