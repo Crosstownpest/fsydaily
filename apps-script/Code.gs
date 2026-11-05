@@ -189,7 +189,7 @@ function invites_() {
 function byInvite_(token) {
   const hit = invites_()[norm_(token)];
   const w = hit ? wardById_(hit.ward) : null;
-  if (!w) throw new Error("This phone's sign-in was reset. Open your quorum's join link and tap your name again.");
+  if (!w) throw new Error("Your old sign-in doesn't work anymore. Ask your leader for your quorum's new join link, open it, and tap your name.");
   if (!hit.joined) markJoined_(w.id, hit.name);
   return { ward: w, name: hit.name };
 }
@@ -605,14 +605,15 @@ function requestInvite(wardId, name) {
   if (!to.length) return { message: "Your ward's leaders don't have an email on file. Ask one of them at church for your link." };
   const esc = function (x) { return String(x).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); };
   MailApp.sendEmail({ to: to.join(','), name: 'FSY Daily Prep',
-    subject: name + ' needs to be reset on FSY Daily Prep',
+    subject: name + ' needs the FSY Daily Prep link',
     htmlBody: '<div style="font-family:Arial,sans-serif;font-size:15px;color:#18212b">' +
-      '<p><b>' + esc(name) + '</b> says he can\'t get into FSY Daily Prep on his phone (new phone, or he got logged out).</p>' +
-      '<p>Open your dashboard and tap <b>Reset</b> next to his name. Then he can open your quorum\'s join link and tap his name again.</p>' +
+      '<p><b>' + esc(name) + '</b> asked for your quorum\'s FSY Daily Prep link.</p>' +
+      '<p>Text him this link (in your quorum group chat is best):<br><a href="' + joinLink_(w) + '">' + joinLink_(w) + '</a></p>' +
+      '<p>If he says his name shows "already set up," open your dashboard and tap <b>Reset</b> next to his name first.</p>' +
       '<p style="color:#5b6774;font-size:13px">Don\'t recognize the name? Ignore this. Anyone can send a request, but only you can send the link.</p></div>' });
   c.put(nk, '1', 1800);
   c.put(wk, String(Number(c.get(wk) || 0) + 1), 3600);
-  return { message: 'Sent. Your leaders got an email. Once they tap Reset, open the join link again and tap your name.' };
+  return { message: 'Sent. Your leaders got an email and will text you the link. Open it and tap your name.' };
 }
 
 // "Forgot your PIN?": emails each leader in that ward (who has an email on file) his personal sign-in link.

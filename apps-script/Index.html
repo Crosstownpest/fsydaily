@@ -83,6 +83,7 @@ textarea{width:100%;min-height:64px;border:1px solid var(--line);border-radius:8
 .done{padding:14px 16px;border-radius:10px;background:var(--good-soft);color:var(--good);font-weight:600}
 .small{font-size:.85rem;color:var(--muted);margin:0}
 .err{color:#c0392b;font-size:.9rem;margin:0}
+.info{background:#fff6e0;border:1px solid #f0d58f;color:#5a4410;border-radius:10px;padding:10px 12px;font-size:.95rem;margin:0}
 .loading{padding:40px 20px;text-align:center;color:var(--muted)}
 .foot-links{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;padding:0 16px 32px;font-size:.88rem}
 .alt{padding:20px 16px 40px;display:grid;gap:16px}
@@ -318,7 +319,7 @@ function copyOrShow(btn,msg,after){
   }catch(e){show();}
 }
 function run(fn,args,ok,fail){
-  var r=google.script.run.withSuccessHandler(ok).withFailureHandler(function(e){fail((e&&e.message)||"Something went wrong. Check your connection and try again.");});
+  var r=google.script.run.withSuccessHandler(ok).withFailureHandler(function(e){fail(String((e&&e.message)||"Something went wrong. Check your connection and try again.").replace(/^(Exception|Error):\s*/,""));});
   r[fn].apply(r,args);
 }
 
@@ -335,11 +336,10 @@ function showWelcome(msg){
   }
   var p=panel("Young men");
   p.appendChild(el("p",null,"Open the join link your leader shared, or scan the QR code in class, then tap your name. That's it."));
-  if(msg)p.appendChild(el("p","err",msg));
+  if(msg)p.appendChild(el("p",msg.indexOf("OLD:")===0?"info":"err",msg.replace(/^OLD:/,"")));
   var yr=el("div","row2");
-  var b1=el("button","btn2","I don't have the link");b1.type="button";b1.onclick=function(){showCodeView("");};
-  var b0=el("button","btn2","My phone got logged out");b0.type="button";b0.onclick=showLostLink;
-  yr.appendChild(b1);yr.appendChild(b0);p.appendChild(yr);
+  var b0=el("button","btn2","I need the link");b0.type="button";b0.onclick=showLostLink;
+  yr.appendChild(b0);p.appendChild(yr);
   a.appendChild(p);
   var q=panel("Leaders");
   q.appendChild(el("p",null,"See your young men's check-ins and responses, and get a 6 PM summary of who still needs to check in."));
@@ -358,7 +358,7 @@ function showJoin(code,msg){
     var a2=showAlt();
     var p=panel("Welcome to FSY Daily Prep");
     p.appendChild(el("p",null,info.wardName+": tap your name. This sets up your phone. You only do it once."));
-    if(msg)p.appendChild(el("p","err",msg));
+    if(msg)p.appendChild(el("p",msg.indexOf("OLD:")===0?"info":"err",msg.replace(/^OLD:/,"")));
     var list=el("div","names");
     info.names.forEach(function(n){
       var b=el("button","namebtn"+(n.joined?" taken":""),n.name);b.type="button";
@@ -392,8 +392,8 @@ function alert2(after,m){var e=el("p","err",m);after.after(e);setTimeout(functio
 
 function showLostLink(){
   var a=showAlt();a.appendChild(backBtn());
-  var p=panel("Phone got logged out?");
-  p.appendChild(el("p",null,"Open your quorum's join link again and tap your name. If it says you're already set up, pick your ward below and your leaders will get an email to reset you."));
+  var p=panel("Need your link?");
+  p.appendChild(el("p",null,"Pick your ward and type your name. Your leaders get an email and will send you the join link."));
   var wf=field("Your ward","lostWard","select");wf.input.appendChild(new Option("Loading wards…",""));p.appendChild(wf.wrap);
   var nf=field("Your name","lostName","input","First name and last initial");p.appendChild(nf.wrap);
   var e=errLine();var b=el("button","confirm","Ask my leaders");b.type="button";p.appendChild(b);p.appendChild(e);
@@ -453,8 +453,9 @@ function loadApp(){
     }
     viewing=D.today;showApp();renderAll();
   },function(msg){
-    if(INVITE){INVITE="";ls("fsy-invite",null);showWelcome(msg);}
-    else if(WARD){WARD="";ls("fsy-ward",null);showWelcome(msg);}
+    var gone="OLD:Your old sign-in doesn't work anymore. Open your quorum's new join link and tap your name. Don't have it? Tap I need the link.";
+    if(INVITE){INVITE="";WARD="";ls("fsy-invite",null);ls("fsy-ward",null);tellParent();showWelcome(gone);}
+    else if(WARD){WARD="";ls("fsy-ward",null);tellParent();showWelcome(gone);}
     else if(LEGACY){LEGACY=false;showWelcome("Open your quorum's join link and tap your name.");}
     else{document.getElementById("card").innerHTML="";document.getElementById("card").appendChild(el("div","loading","Couldn't load: "+msg));}
   });

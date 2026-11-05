@@ -57,6 +57,7 @@
 
   var q = new URLSearchParams(location.search);
   var invite = clean(q.get("i"), 16).toUpperCase();
+  if (invite && invite === get("fsy-dead")) invite = "";
   var ward = clean(q.get("w"), 24).toUpperCase();
   var leader = clean(q.get("L"), 16).toUpperCase();
   var join = clean(q.get("j"), 24).toUpperCase();
@@ -83,6 +84,13 @@
       set("fsy-i", clean(d.i, 16).toUpperCase()); invite = get("fsy-i");
       // Put his personal sign-in in the address, so Add to Home Screen saves an icon that opens as him.
       if (invite && location.search.indexOf("i=" + invite) < 0) { try { history.replaceState(null, "", "/?i=" + invite); } catch (x) {} }
+      if (!invite) {
+        // His old sign-in was erased. Remember it so a home-screen icon saved with it stops reopening it.
+        var old = clean(q.get("i"), 16).toUpperCase();
+        if (old) set("fsy-dead", old);
+        try { history.replaceState(null, "", "/"); } catch (x) {}
+        document.getElementById("remind").hidden = true; document.getElementById("tip").hidden = true;
+      }
     }
     if (typeof d.w === "string") set("fsy-w", clean(d.w, 24).toUpperCase());
     if (typeof d.n === "string") set("fsy-n", clean(d.n, 40));
