@@ -60,6 +60,10 @@
   if (invite && invite === get("fsy-dead")) invite = "";
   var ward = clean(q.get("w"), 24).toUpperCase();
   var leader = clean(q.get("L"), 16).toUpperCase();
+  // k = the leader sign-in kept in a saved home-screen link. L = a fresh sign-in link from email.
+  var keep = clean(q.get("k"), 16).toUpperCase();
+  if (leader) { set("fsy-L", leader); set("fsy-L-out", ""); }
+  else if (keep && !get("fsy-L") && keep !== get("fsy-L-out")) set("fsy-L", keep);
   var join = clean(q.get("j"), 24).toUpperCase();
   if (invite) { set("fsy-i", invite); set("fsy-w", ""); }
   else if (ward) { set("fsy-w", ward); set("fsy-i", ""); }
@@ -80,10 +84,16 @@
     if (!/\.googleusercontent\.com$|^https:\/\/script\.google\.com$/.test(e.origin)) return;
     var d = e.data && e.data.fsy;
     if (!d) return;
+    if (d.hello) { try { e.source.postMessage({ fsyHost: { L: get("fsy-L") } }, e.origin); } catch (x) {} return; }
+    if (typeof d.L === "string") {
+      var nl = clean(d.L, 16).toUpperCase();
+      if (!nl && get("fsy-L")) set("fsy-L-out", get("fsy-L"));   // signed out: don't sign back in from an old home-screen link
+      set("fsy-L", nl);
+    }
     if (typeof d.i === "string") {
       set("fsy-i", clean(d.i, 16).toUpperCase()); invite = get("fsy-i");
-      // Put his personal sign-in in the address, so Add to Home Screen saves an icon that opens as him.
-      if (invite && location.search.indexOf("i=" + invite) < 0) { try { history.replaceState(null, "", "/?i=" + invite); } catch (x) {} }
+      // Put his sign-in in the address, so Add to Home Screen saves an icon that opens as him (and keeps a leader signed in).
+      if (invite) { var u = "/?i=" + invite + (get("fsy-L") ? "&k=" + get("fsy-L") : ""); if (location.search !== u.slice(1)) { try { history.replaceState(null, "", u); } catch (x) {} } }
       if (!invite) {
         // His old sign-in was erased. Remember it so a home-screen icon saved with it stops reopening it.
         var old = clean(q.get("i"), 16).toUpperCase();

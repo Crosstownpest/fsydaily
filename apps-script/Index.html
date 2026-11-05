@@ -165,12 +165,18 @@ function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null
 var WARD = WARD_PARAM || ls("fsy-ward") || "";
 if (WARD_PARAM) ls("fsy-ward", WARD_PARAM);
 function nameKey(){return WARD ? "fsy-name-"+WARD : "fsy-name";}
-if (LEADER_PARAM) ls("fsy-leader", LEADER_PARAM);
+if (LEADER_PARAM) { ls("fsy-leader", LEADER_PARAM); setTimeout(function(){tellParent();},0); }
 var INVITE = INVITE_PARAM || ls("fsy-invite") || "";
 if (INVITE_PARAM) ls("fsy-invite", INVITE_PARAM);
 var D=null, me=ls(nameKey()), viewing=null, saving=false, errMsg="";
 var LEGACY = !WARD && !INVITE && !!ls("fsy-name");
-function tellParent(){try{window.top.postMessage({fsy:{i:INVITE,w:WARD,n:me||""}},"*");}catch(e){}}
+function tellParent(){try{window.top.postMessage({fsy:{i:INVITE,w:WARD,n:me||"",L:ls("fsy-leader")||""}},"*");}catch(e){}}
+// fsydaily.com keeps a copy of the leader sign-in, so leaders stay signed in even if this frame's storage gets cleared.
+window.addEventListener("message",function(e){
+  if(e.source!==window.top)return;var h=e.data&&e.data.fsyHost;if(!h)return;
+  if(typeof h.L==="string"&&/^[A-Z0-9]{8,16}$/.test(h.L)&&!ls("fsy-leader"))ls("fsy-leader",h.L);
+});
+try{window.top.postMessage({fsy:{hello:1}},"*");}catch(e){}
 var FALLBACK={title:"Today's reading is on its way",ref:"This month's For the Strength of Youth",
   refUrl:"https://www.churchofjesuschrist.org/study/magazines/for-the-strength-of-youth?lang=eng",
   thought:"The daily reading for today hasn't been posted yet. Open this month's magazine, read the Sunday lesson for this week or any article that catches your eye, and spend a couple of minutes thinking about it.",
@@ -224,6 +230,7 @@ function renderWho(){
     var rb=el("button","btn2","Get reminders");rb.type="button";
     rb.onclick=function(){try{window.top.postMessage({fsy:{askReminders:true}},"*");}catch(e){}};
     box.appendChild(rb);
+    if(ls("fsy-leader")){var db=el("button","btn2","Dashboard ›");db.type="button";db.onclick=showLeaderView;box.appendChild(db);}
     return;
   }
   if(me&&D.roster.indexOf(me)>=0){
@@ -374,7 +381,7 @@ function showJoin(code,msg){
 }
 function claim(code,name,btn){
   btn.disabled=true;
-  run("claimName",[code,name,LEGACY],function(res){
+  run("claimName",[code,name,LEGACY,ls("fsy-leader")||""],function(res){
     INVITE=res.invite;ls("fsy-invite",INVITE);me=name;ls(nameKey(),name);tellParent();D=null;showApp();loadApp();
   },function(m){
     btn.disabled=false;
@@ -540,8 +547,16 @@ function confirmBtn(label,yesLabel,onYes,host){
 function renderLeader(L){
   var code=ls("fsy-leader");
   var a=showAlt();
-  var top=el("div","row2");top.style.justifyContent="space-between";top.appendChild(backBtn());
-  var so=el("button","linkbtn","Sign out");so.type="button";so.onclick=function(){ls("fsy-leader",null);showLeaderView();};top.appendChild(so);a.appendChild(top);
+  var top=el("div","row2");top.style.justifyContent="space-between";
+  var mr=el("button","linkbtn","‹ My reading");mr.type="button";
+  mr.onclick=function(){
+    if(INVITE&&D){showApp();return;}
+    if(INVITE){loadApp();return;}
+    var jc=(String(L.joinLink||"").match(/[?&]j=([^&]+)/)||[])[1]||"";
+    if(jc)showJoin(jc,"Tap your own name to see your reading. Leaders don't need a reset.");else loadApp();
+  };
+  top.appendChild(mr);
+  var so=el("button","linkbtn","Sign out");so.type="button";so.onclick=function(){ls("fsy-leader",null);tellParent();showLeaderView();};top.appendChild(so);a.appendChild(top);
   a.appendChild(el("h2",null,L.ward.name));
   var err=errLine();a.appendChild(err);
   function fail(m){err.textContent=m;window.scrollTo(0,0);}

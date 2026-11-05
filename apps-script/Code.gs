@@ -298,18 +298,21 @@ function joinInfo(code) {
 }
 // A boy taps his name on the join page. The name locks to his phone until a leader taps Reset.
 // Phones already set up the old way (legacy) can keep their name without a reset.
-function claimName(code, name, legacy) {
+function claimName(code, name, legacy, leaderCred) {
   name = String(name || '').trim();
   let w;
   if (code) w = wardByJoin_(code);
   else w = wardByYouth_('', legacy);
+  // A signed-in leader of this ward can open his own reading on any phone without a reset.
+  let isLeader = false;
+  if (leaderCred) { try { isLeader = wardByLeader_(leaderCred).id === w.id; } catch (x) {} }
   const lock = LockService.getScriptLock();
   lock.waitLock(15000);
   try {
     const r = rosterRows_(w.id).filter(function (x) { return x.name === name; })[0];
     if (!r) throw new Error("That name isn't on your quorum's list. Ask your leader to add you.");
     const oldPhone = legacy && Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd') <= LEGACY_UNTIL;
-    if (r.joined && r.token && !oldPhone) throw new Error('TAKEN');
+    if (r.joined && r.token && !oldPhone && !isLeader) throw new Error('TAKEN');
     let token = r.token;
     if (!token) { token = newToken_(); sh_('Roster').getRange(r.row, 4).setValue(token); }
     if (!r.joined) sh_('Roster').getRange(r.row, 5).setValue("'" + Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd'));
@@ -723,8 +726,8 @@ function sendLeaderSummaries() {
       if (Number(Utilities.formatDate(new Date(), tzOf_(w), 'H')) !== SUMMARY_HOUR) return;
       const t = today_(w), key = 'sum_' + w.id + '_' + t;
       if (props.getProperty(key)) return;
-      const to = Object.keys(leaders).map(function (k) { return leaders[k]; })
-        .filter(function (l) { return l.ward === w.id && l.email; }).map(function (l) { return l.email; });
+      const to = Object.keys(leaders).filter(function (k) { return leaders[k].ward === w.id && leaders[k].email; })
+        .map(function (k) { return { email: leaders[k].email, link: base_() + '?L=' + k }; });
       if (!to.length) return;
       const roster = roster_(w.id);
       if (!roster.length) return;
@@ -740,8 +743,11 @@ function sendLeaderSummaries() {
       const html = '<div style="font-family:Arial,sans-serif;font-size:15px;color:#18212b">' +
         '<p><b>' + (roster.length - missing.length) + ' of ' + roster.length + '</b> have checked in today.</p>' +
         (missing.length ? '<p>Still to go:</p><ul>' + missing.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul>' : '<p>Nice work, everyone is in.</p>') +
-        '<p style="color:#5b6774;font-size:13px">Open your leader link to read their responses. You get this because a leader in your ward added your email in FSY Daily Prep.</p></div>';
-      MailApp.sendEmail({ to: to.join(','), subject: subject, htmlBody: html, name: 'FSY Daily Prep' });
+        '<p><a href="{LINK}" style="display:inline-block;background:#1d3047;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:bold">Open my dashboard</a></p>' +
+        '<p style="color:#5b6774;font-size:13px">That button is your personal sign-in link, so don\'t forward this email. You get this because a leader in your ward added your email in FSY Daily Prep.</p></div>';
+      to.forEach(function (t) {
+        MailApp.sendEmail({ to: t.email, subject: subject, htmlBody: html.replace('{LINK}', t.link), name: 'FSY Daily Prep' });
+      });
       props.setProperty(key, '1');
     } catch (x) { console.error(w.id, x); }
   });
