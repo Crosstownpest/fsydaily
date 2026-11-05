@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FSY Daily Prep</title>
+<meta name="description" content="A two-minute daily reading that gets your quorum ready for Sunday's For the Strength of Youth lesson.">
+<meta name="apple-mobile-web-app-title" content="FSY Prep">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1d3047">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<style>
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; background: #1d3047; }
+  #app { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: #eef1f4; }
+  .bar { position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 2;
+         display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 12px;
+         background: #1d3047; color: #eef2f6; font: 15px/1.4 -apple-system, system-ui, sans-serif;
+         box-shadow: 0 6px 24px rgba(0,0,0,.35); }
+  .bar b { color: #e0ad48; }
+  .bar .x { margin-left: auto; background: none; border: 0; color: #aab6c3; font-size: 22px; line-height: 1; cursor: pointer; }
+  .bar .go { flex: none; border: 0; border-radius: 8px; padding: 8px 12px; background: #e0ad48; color: #1a1205; font: 600 14px -apple-system, system-ui, sans-serif; cursor: pointer; }
+  .share { display: inline-block; width: 1em; height: 1em; vertical-align: -.12em; }
+  noscript { display: block; padding: 40px 20px; color: #fff; font-family: system-ui, sans-serif; }
+</style>
+</head>
+<body>
+<noscript>FSY Daily Prep needs JavaScript turned on.</noscript>
+<iframe id="app" title="FSY Daily Prep" allow="clipboard-write"></iframe>
+
+<div id="tip" class="bar" hidden>
+  <span>Save it: tap <b>Share</b>
+    <svg class="share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
+    then <b>Add to Home Screen</b> to get reminders.</span>
+  <button class="x" id="tipX" aria-label="Close">×</button>
+</div>
+
+<div id="remind" class="bar" hidden>
+  <span id="remindText">Get a reminder on days you haven't checked in yet?</span>
+  <button class="go" id="remindGo">Turn on</button>
+  <button class="x" id="remindX" aria-label="Not now">×</button>
+</div>
+
+<script>
+  // The Apps Script web app link (Deploy > Manage deployments). Ends in /exec.
+  var APP_URL = "https://script.google.com/macros/s/AKfycbywBQ2vv05hkwKkOFd384q933YG2rEtsgNnisQ6FC5TYrqA_NURZr4hhgdUZxyIqNmkDg/exec";
+  var PUSH_KEY = "BE1IU63-h9iDYqIuGcx_SMC9R25Ads4TmqfPCiCeYqefPzJhebCYgOl9yVg2y8-C-GJ7xzj2noPQeWHXj23Ceqg";
+
+  function get(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
+  function set(k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) {} }
+  function clean(v, max) { return String(v || "").replace(/[^A-Za-z0-9 .'\-]/g, "").slice(0, max); }
+
+  var q = new URLSearchParams(location.search);
+  var invite = clean(q.get("i"), 16).toUpperCase();
+  var ward = clean(q.get("w"), 24).toUpperCase();
+  var leader = clean(q.get("L"), 16).toUpperCase();
+  if (invite) { set("fsy-i", invite); set("fsy-w", ""); }
+  else if (ward) { set("fsy-w", ward); set("fsy-i", ""); }
+  invite = invite || get("fsy-i");
+  ward = ward || get("fsy-w");
+  var name = get("fsy-n");
+
+  var src = APP_URL + "?";
+  if (invite) src += "i=" + encodeURIComponent(invite) + "&";
+  else if (ward) src += "w=" + encodeURIComponent(ward) + "&";
+  if (name && !invite) src += "n=" + encodeURIComponent(name) + "&";
+  if (leader) src += "L=" + encodeURIComponent(leader);
+  document.getElementById("app").src = src;
+
+  // The app tells this page who's checking in, so a phone stays set up even if the app's own storage is cleared.
+  window.addEventListener("message", function (e) {
+    if (!/\.googleusercontent\.com$|^https:\/\/script\.google\.com$/.test(e.origin)) return;
+    var d = e.data && e.data.fsy;
+    if (!d) return;
+    if (typeof d.i === "string") { set("fsy-i", clean(d.i, 16).toUpperCase()); invite = get("fsy-i"); }
+    if (typeof d.w === "string") set("fsy-w", clean(d.w, 24).toUpperCase());
+    if (typeof d.n === "string") set("fsy-n", clean(d.n, 40));
+  });
+
+  /* ---------- home screen + reminders ---------- */
+  var ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  var standalone = window.navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
+  var canPush = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  var reg = null;
+
+  function keyBytes(b64) {
+    var pad = "=".repeat((4 - b64.length % 4) % 4);
+    var raw = atob((b64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+    var out = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+  function save(sub) {
+    return fetch("/api/subscribe", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ invite: invite, subscription: sub }) }).then(function (r) { if (!r.ok) throw new Error("save"); set("fsy-push-for", invite); });
+  }
+  function turnOn() {
+    var txt = document.getElementById("remindText"), go = document.getElementById("remindGo");
+    go.disabled = true;
+    Notification.requestPermission().then(function (p) {
+      if (p !== "granted") { txt.textContent = "Reminders are off. You can turn them on later in your phone's settings."; go.hidden = true; set("fsy-remind-asked", "1"); return; }
+      return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(PUSH_KEY) })
+        .then(save).then(function () { txt.textContent = "Reminders are on. You'll only get one if you haven't checked in."; go.hidden = true; set("fsy-remind-asked", "1");
+          setTimeout(function () { document.getElementById("remind").hidden = true; }, 4000); });
+    }).catch(function () { txt.textContent = "That didn't work. Try again in a minute."; go.disabled = false; });
+  }
+
+  if (canPush) {
+    navigator.serviceWorker.register("/sw.js").then(function (r) {
+      reg = r;
+      return navigator.serviceWorker.ready;
+    }).then(function () {
+      if (!invite) return;
+      return reg.pushManager.getSubscription().then(function (sub) {
+        if (sub && Notification.permission === "granted") {
+          if (get("fsy-push-for") !== invite) save(sub).catch(function () {});   // he got a new invite link: move reminders to it
+          return;
+        }
+        var askable = Notification.permission === "default" && (standalone || !ios) && !get("fsy-remind-asked");
+        if (askable) {
+          var bar = document.getElementById("remind");
+          bar.hidden = false;
+          document.getElementById("remindGo").onclick = turnOn;
+          document.getElementById("remindX").onclick = function () { bar.hidden = true; set("fsy-remind-asked", "1"); };
+        }
+      });
+    }).catch(function () {});
+  }
+
+  // iPhone Safari: reminders only work after Add to Home Screen, so nudge once.
+  if (ios && !standalone && (invite || ward) && !get("fsy-tip")) {
+    var tip = document.getElementById("tip");
+    tip.hidden = false;
+    document.getElementById("tipX").onclick = function () { tip.hidden = true; set("fsy-tip", "1"); };
+    setTimeout(function () { tip.hidden = true; }, 15000);
+  }
+</script>
+</body>
+</html>
