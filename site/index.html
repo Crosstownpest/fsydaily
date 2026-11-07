@@ -92,6 +92,7 @@
     }
     if (typeof d.i === "string") {
       set("fsy-i", clean(d.i, 16).toUpperCase()); invite = get("fsy-i");
+      if (invite && invite === get("fsy-dead")) set("fsy-dead", "");
       // Put his sign-in in the address, so Add to Home Screen saves an icon that opens as him (and keeps a leader signed in).
       if (invite) { var u = "/?i=" + invite + (get("fsy-L") ? "&k=" + get("fsy-L") : ""); if (location.search !== u.slice(1)) { try { history.replaceState(null, "", u); } catch (x) {} } }
       if (!invite) {

@@ -232,6 +232,9 @@ function renderWho(){
     var rb=el("button","btn2","Get reminders");rb.type="button";
     rb.onclick=function(){try{window.top.postMessage({fsy:{askReminders:true}},"*");}catch(e){}};
     box.appendChild(rb);
+    var nu=el("button","linkbtn","Not you?");nu.type="button";
+    nu.onclick=function(){var jc=D.youthCode;INVITE="";me=null;ls("fsy-invite",null);try{localStorage.removeItem(nameKey());}catch(e){}tellParent();showJoin(jc);};
+    box.appendChild(nu);
     if(ls("fsy-leader")){var db=el("button","btn2","Dashboard ›");db.type="button";db.onclick=showLeaderView;box.appendChild(db);}
     return;
   }
@@ -240,7 +243,7 @@ function renderWho(){
     box.appendChild(el("span",null,"Leader view: what your young men see today"));
     var lb=el("span","row2");
     var cm=el("button","linkbtn","Check in myself");cm.type="button";
-    cm.onclick=function(){showJoin(D.youthCode,"OLD:Tap your own name. Leaders don't need a reset. Not on the list? Add yourself under Young men on your dashboard.");};
+    cm.onclick=function(){showJoin(D.youthCode,"OLD:Tap your own name. Not on the list? Add yourself under Young men on your dashboard.");};
     var dv=el("button","btn2","Dashboard ›");dv.type="button";dv.onclick=showLeaderView;
     lb.appendChild(cm);lb.appendChild(dv);box.appendChild(lb);return;
   }
@@ -378,13 +381,12 @@ function showJoin(code,msg){
   run("joinInfo",[code],function(info){
     var a2=showAlt();
     var p=panel("Welcome to FSY Daily Prep");
-    p.appendChild(el("p",null,info.wardName+": tap your name. This sets up your phone. You only do it once."));
+    p.appendChild(el("p",null,info.wardName+": tap your name. Works on any phone, anytime."));
     if(msg)p.appendChild(el("p",msg.indexOf("OLD:")===0?"info":"err",msg.replace(/^OLD:/,"")));
     var list=el("div","names");
     info.names.forEach(function(n){
-      var b=el("button","namebtn"+(n.joined?" taken":""),n.name);b.type="button";
-      if(n.joined)b.appendChild(el("span","small"," · already set up"));
-      b.onclick=function(){claim(code,n.name,b);};
+      var b=el("button","namebtn",n.name);b.type="button";
+      b.onclick=function(){confirmName(code,n.name);};
       list.appendChild(b);
     });
     if(!info.names.length)list.appendChild(el("p","small","Your leader hasn't added any names yet."));
@@ -393,20 +395,24 @@ function showJoin(code,msg){
     a2.appendChild(p);
   },function(m){WARD="";ls("fsy-ward",null);showWelcome(m);});
 }
-function claim(code,name,btn){
+function confirmName(code,name){
+  var a=showAlt();
+  var p=panel("You're "+name+"?");
+  p.appendChild(el("p",null,"Only tap yes if this is you. Your check-ins and answers go under this name."));
+  var e=errLine();
+  var row=el("div","row2");
+  var y=el("button","confirm","Yes, that's me");y.type="button";
+  var n=el("button","btn2","No, go back");n.type="button";n.onclick=function(){showJoin(code);};
+  row.appendChild(y);row.appendChild(n);p.appendChild(row);p.appendChild(e);a.appendChild(p);
+  y.onclick=function(){claim(code,name,y,e);};
+}
+function claim(code,name,btn,errEl){
   btn.disabled=true;
   run("claimName",[code,name,LEGACY,ls("fsy-leader")||""],function(res){
     INVITE=res.invite;ls("fsy-invite",INVITE);me=name;ls(nameKey(),name);tellParent();D=null;showApp();loadApp();
   },function(m){
     btn.disabled=false;
-    if(m==="TAKEN"){
-      var a=showAlt();a.appendChild(backBtn());
-      var p=panel(name+" is already set up");
-      p.appendChild(el("p",null,"Your name is set up on another phone. If that's you on a new phone or you got logged out, ask your leaders to reset you. Then come back and tap your name."));
-      var e=errLine();var b=el("button","confirm","Ask my leaders to reset me");b.type="button";p.appendChild(b);p.appendChild(e);
-      b.onclick=function(){b.disabled=true;run("requestReset",[code,name],function(r){p.innerHTML="";p.appendChild(el("h3",null,"Request sent"));p.appendChild(el("p",null,r.message));},function(x){b.disabled=false;e.textContent=x;});};
-      a.appendChild(p);
-    } else { alert2(btn,m); }
+    if(errEl)errEl.textContent=m;else alert2(btn,m);
   });
 }
 function alert2(after,m){var e=el("p","err",m);after.after(e);setTimeout(function(){e.remove();},6000);}
@@ -448,8 +454,8 @@ function showGuide(){
   [["Signing in","Leaders sign in with their email. Tap Leader sign-in, type your email, and open the link we send. Your phone stays signed in."],
    ["New young man moves in","Tap Add young men on your dashboard and type his name. He taps it on the same join link."],
    ["Someone moves away","Tap Remove next to his name. His past answers stay in your records."],
-   ["New phone or logged out","Tap Reset next to his name. He opens the join link and taps his name again."],
-   ["Someone took the wrong name","Tap Reset next to that name. Then the right young man can tap it."],
+   ["New phone or logged out","He opens the join link and taps his name again. It works on any phone, as many times as he needs. Nothing for you to do."],
+   ["Someone tapped the wrong name","Have him tap Not you? at the top of his reading and pick his own name."],
    ["Who sees what","Young men see only first names and check marks. Only your ward's leaders see their answers."],
    ["Reminders","Young men who turn on reminders get one at 4 PM and 8 PM only if they haven't checked in. Leaders get a 6 PM email summary."]
   ].forEach(function(x){var d=el("div","faq");d.appendChild(el("b",null,x[0]));d.appendChild(el("p",null,x[1]));f.appendChild(d);});
@@ -613,7 +619,6 @@ function renderLeader(L){
     left.appendChild(dots);
     row.appendChild(left);
     var acts=el("span","row2 acts");
-    if(b.joined)acts.appendChild(confirmBtn("Reset","Yes, reset",function(){run("leaderResetBoy",[code,b.name],renderLeader,fail);},acts));
     acts.appendChild(confirmBtn("Remove","Yes, remove",function(){run("leaderRemoveName",[code,b.name],renderLeader,fail);},acts));
     row.appendChild(acts);list.appendChild(row);
   });
@@ -623,7 +628,7 @@ function renderLeader(L){
   var addB=el("button","btn2","Add");addB.type="button";
   var ar=el("div","row2");ar.appendChild(addT);ar.appendChild(addB);ym.appendChild(ar);
   addB.onclick=function(){if(!addT.value.trim()){fail("Type a name to add.");return;}addB.disabled=true;run("leaderAddNames",[code,addT.value],renderLeader,function(m){addB.disabled=false;fail(m);});};
-  ym.appendChild(el("p","small","Reset: new phone or logged out (he taps his name again). Remove: moved away (his past answers are kept)."));
+  ym.appendChild(el("p","small","New phone or logged out? He just opens the join link and taps his name again. Remove: moved away (his past answers are kept)."));
   a.appendChild(ym);
 
   // 3. Responses

@@ -296,8 +296,8 @@ function joinInfo(code) {
   const w = wardByJoin_(code);
   return { wardName: String(w.name).replace(/^'/, ''), names: rosterRows_(w.id).map(function (r) { return { name: r.name, joined: !!r.joined }; }) };
 }
-// A boy taps his name on the join page. The name locks to his phone until a leader taps Reset.
-// Phones already set up the old way (legacy) can keep their name without a reset.
+// A boy taps his name on the join page. It works on any phone, any number of times,
+// and always gives back the same sign-in so his streak and reminders follow him.
 function claimName(code, name, legacy, leaderCred) {
   name = String(name || '').trim();
   let w;
@@ -312,7 +312,6 @@ function claimName(code, name, legacy, leaderCred) {
     const r = rosterRows_(w.id).filter(function (x) { return x.name === name; })[0];
     if (!r) throw new Error("That name isn't on your quorum's list. Ask your leader to add you.");
     const oldPhone = legacy && Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd') <= LEGACY_UNTIL;
-    if (r.joined && r.token && !oldPhone && !isLeader) throw new Error('TAKEN');
     let token = r.token;
     if (!token) { token = newToken_(); sh_('Roster').getRange(r.row, 4).setValue(token); }
     if (!r.joined) sh_('Roster').getRange(r.row, 5).setValue("'" + Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd'));
@@ -612,7 +611,7 @@ function requestInvite(wardId, name) {
     htmlBody: '<div style="font-family:Arial,sans-serif;font-size:15px;color:#18212b">' +
       '<p><b>' + esc(name) + '</b> asked for your quorum\'s FSY Daily Prep link.</p>' +
       '<p>Text him this link (in your quorum group chat is best):<br><a href="' + joinLink_(w) + '">' + joinLink_(w) + '</a></p>' +
-      '<p>If he says his name shows "already set up," open your dashboard and tap <b>Reset</b> next to his name first.</p>' +
+      '<p>He opens it and taps his name. That\'s all; it works on any phone.</p>' +
       '<p style="color:#5b6774;font-size:13px">Don\'t recognize the name? Ignore this. Anyone can send a request, but only you can send the link.</p></div>' });
   c.put(nk, '1', 1800);
   c.put(wk, String(Number(c.get(wk) || 0) + 1), 3600);
