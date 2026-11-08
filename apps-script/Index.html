@@ -160,6 +160,8 @@ var NAME_PARAM = <?!= JSON.stringify(nameParam) ?>;
 var INVITE_PARAM = <?!= JSON.stringify(inviteParam) ?>;
 var LEADER_PARAM = <?!= JSON.stringify(leaderParam) ?>;
 var JOIN_PARAM = <?!= JSON.stringify(joinParam) ?>;
+var APPROVE_PARAM = <?!= JSON.stringify(approveParam) ?>;
+var pollTimer=null;
 var APP_URL = <?!= JSON.stringify(appUrl) ?>;
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v);}catch(e){}return null;}
 var WARD = WARD_PARAM || ls("fsy-ward") || "";
@@ -537,23 +539,44 @@ function showLeaderView(){
   var a=showAlt();a.appendChild(backBtn());
   if(!code){
     var p=panel("Leader sign-in");
-    p.appendChild(el("p",null,"Type your email and we'll send you a sign-in link. Open it on this phone and you'll stay signed in."));
+    p.appendChild(el("p",null,"Type your email and we'll send you a sign-in link. Tap it on any device and this screen signs in by itself."));
     var ef=field("Your email","leaderEmailIn","input","name@example.com");ef.input.type="email";ef.input.autocomplete="email";p.appendChild(ef.wrap);
     var e=errLine();var b=el("button","confirm","Email me a sign-in link");b.type="button";p.appendChild(b);p.appendChild(e);
     b.onclick=function(){
       var v=ef.input.value.trim();
       if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)){e.textContent="Enter your email.";return;}
       b.disabled=true;e.textContent="";
-      run("leaderEmailLink",[v],function(r){p.innerHTML="";p.appendChild(el("h3",null,"Check your email"));p.appendChild(el("p",null,r.message));
-        p.appendChild(el("p","small","Don't see it in a few minutes? Ask another leader in your ward to add your email under Leaders."));},
+      var req=ls("fsy-req");var rt=+(ls("fsy-req-t")||0);
+      if(!req||Date.now()-rt>240000){req="";var ch="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";for(var i=0;i<24;i++)req+=ch.charAt(Math.floor(Math.random()*ch.length));ls("fsy-req",req);ls("fsy-req-t",String(Date.now()));}
+      run("leaderEmailLink",[v,req],function(r){p.innerHTML="";p.appendChild(el("h3",null,"Check your email"));p.appendChild(el("p",null,r.message));
+        p.appendChild(el("p","info","Leave this screen open. When you tap the link in the email, this screen signs you in. You'll stay signed in here."));
+        p.appendChild(el("p","small","Don't see it in a few minutes? Ask another leader in your ward to add your email under Leaders."));
+        waitForSignIn(req);},
         function(m){b.disabled=false;e.textContent=m;});
     };
     a.appendChild(p);return;
   }
   a.appendChild(el("div","loading","Loading your ward…"));
-  run("leaderData",[code],renderLeader,function(m){ls("fsy-leader",null);showLeaderView();});
+  run("leaderData",[code],function(L){
+    renderLeader(L);
+    if(APPROVE_PARAM){APPROVE_PARAM="";alt.insertBefore(el("p","info","You're signed in. If you asked for this link from the app on your home screen, go back to it. It's signed in now too."),alt.firstChild);}
+  },function(m){ls("fsy-leader",null);showLeaderView();});
 }
 
+function waitForSignIn(req){
+  if(pollTimer)clearTimeout(pollTimer);
+  var start=Date.now();
+  (function tick(){
+    if(Date.now()-start>900000)return;
+    pollTimer=setTimeout(function(){
+      google.script.run.withSuccessHandler(function(r){
+        if(r&&r.token){ls("fsy-leader",r.token);ls("fsy-req",null);tellParent();showLeaderView();return;}
+        if(r&&r.gone)return;
+        tick();
+      }).withFailureHandler(tick).leaderPoll(req);
+    },3000);
+  })();
+}
 // Leaders go straight to the reading. No name to tap unless they want to check in themselves.
 function openLeaderReading(){
   if(INVITE){if(D)showApp();else loadApp();return;}

@@ -27,6 +27,13 @@ function doGet(e) {
   t.inviteParam = norm_(p.i).slice(0, 16);
   t.leaderParam = norm_(p.L).slice(0, 16);
   t.joinParam = norm_(p.j).slice(0, 24);
+  t.approveParam = '';
+  // Opening an emailed sign-in link also signs in the screen that asked for it (e.g. the home-screen app).
+  const a = norm_(p.a).slice(0, 32);
+  if (a && t.leaderParam) {
+    const c = cache_(), k = 'lr_' + a, v = c.get(k);
+    if (v) { const r = JSON.parse(v); if (r.t === t.leaderParam) { r.ok = 1; c.put(k, JSON.stringify(r), 900); t.approveParam = a; } }
+  }
   t.appUrl = ScriptApp.getService().getUrl();
   t.zones = ZONES;
   return t.evaluate()
@@ -219,8 +226,8 @@ function wardByJoin_(code) {
   return w;
 }
 function joinLink_(w) { return base_() + '?j=' + norm_(w.youth); }
-function sendLeaderLink_(to, wardName, token, intro) {
-  const link = base_() + '?L=' + token;
+function sendLeaderLink_(to, wardName, token, intro, reqId) {
+  const link = base_() + '?L=' + token + (reqId ? '&a=' + reqId : '');
   const name = String(wardName).replace(/^'/, '').replace(/[<>&]/g, '');
   MailApp.sendEmail({ to: to, name: 'FSY Daily Prep', subject: 'Your FSY Daily Prep sign-in link: ' + name,
     htmlBody: '<div style="font-family:Arial,sans-serif;font-size:15px;color:#18212b">' +
@@ -327,20 +334,37 @@ function requestReset(code, name) {
   return requestInvite(w.id, name);
 }
 // Leaders sign in by email: we send a sign-in link for every ward that email leads. Same answer either way.
-function leaderEmailLink(email) {
+function leaderEmailLink(email, reqId) {
   email = String(email || '').trim().toLowerCase();
+  reqId = /^[A-Z0-9]{16,32}$/.test(String(reqId || '')) ? String(reqId) : '';
   const msg = "If that email belongs to a leader, we just sent a sign-in link. Check your inbox (and spam).";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Enter your email.');
   const c = cache_(), key = 'mail_' + email;
-  if (c.get(key)) return { message: msg };
+  if (c.get(key)) return { message: "We sent you a link in the last few minutes. Check your inbox (and spam)." };
   c.put(key, '1', 300);
   const m = leaders_();
+  let sent = false;
   Object.keys(m).forEach(function (t) {
-    if (String(m[t].email).toLowerCase() !== email) return;
+    if (sent || String(m[t].email).toLowerCase() !== email) return;
     const w = wardById_(m[t].ward);
-    if (w) { try { sendLeaderLink_(m[t].email, w.name, t, 'Here is your sign-in link for FSY Daily Prep.'); } catch (x) { console.error(x); } }
+    if (!w) return;
+    if (reqId) c.put('lr_' + reqId, JSON.stringify({ t: t, ok: 0 }), 900);
+    try { sendLeaderLink_(m[t].email, w.name, t, 'Tap the button to sign in to FSY Daily Prep. You can open it on any phone or computer: the screen where you asked for it signs in by itself.', reqId); sent = true; }
+    catch (x) { console.error(x); }
   });
   return { message: msg };
+}
+
+// The screen that asked for a sign-in link checks here every few seconds until the link is opened.
+function leaderPoll(reqId) {
+  reqId = String(reqId || '');
+  if (!/^[A-Z0-9]{16,32}$/.test(reqId)) return {};
+  const c = cache_(), v = c.get('lr_' + reqId);
+  if (!v) return { gone: true };
+  const r = JSON.parse(v);
+  if (!r.ok) return {};
+  c.remove('lr_' + reqId);
+  return { token: r.t };
 }
 
 function getData(youthCode, invite, legacy) {

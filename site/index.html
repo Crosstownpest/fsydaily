@@ -76,7 +76,9 @@
   else if (ward) src += "w=" + encodeURIComponent(ward) + "&";
   if (name && !invite) src += "n=" + encodeURIComponent(name) + "&";
   if (leader) src += "L=" + encodeURIComponent(leader) + "&";
-  if (join && !invite) src += "j=" + encodeURIComponent(join);
+  if (join && !invite) src += "j=" + encodeURIComponent(join)+ "&";
+  var approve = clean(q.get("a"), 32).toUpperCase();
+  if (leader && approve) src += "a=" + encodeURIComponent(approve);
   document.getElementById("app").src = src;
 
   // The app tells this page who's checking in, so a phone stays set up even if the app's own storage is cleared.
