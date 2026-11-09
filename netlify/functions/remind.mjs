@@ -1,6 +1,7 @@
 // Runs every hour. Asks the app which young men haven't checked in yet and nudges only them.
 import { getStore } from "@netlify/blobs";
 import webpush from "web-push";
+import { PUBLIC_KEY, privateKey } from "../lib/vapid.mjs";
 
 const ALL = [0, 1, 2, 3, 4, 5, 6];
 const MESSAGES = {
@@ -16,12 +17,12 @@ function pick(hour, dow) {
 }
 
 export default async () => {
-  const { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, APPS_SCRIPT_URL, PUSH_SECRET } = process.env;
-  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY || !APPS_SCRIPT_URL || !PUSH_SECRET) {
-    console.error("Missing settings: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, APPS_SCRIPT_URL, PUSH_SECRET");
+  const { APPS_SCRIPT_URL, PUSH_SECRET } = process.env;
+  if (!privateKey() || !APPS_SCRIPT_URL || !PUSH_SECRET) {
+    console.error("Missing settings: VAPID_PRIVATE_KEY, APPS_SCRIPT_URL, PUSH_SECRET");
     return;
   }
-  webpush.setVapidDetails("https://fsydaily.com", VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+  webpush.setVapidDetails("https://fsydaily.com", PUBLIC_KEY, privateKey());
 
   const store = getStore("subs");
   const { blobs } = await store.list();
