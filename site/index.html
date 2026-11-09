@@ -124,27 +124,46 @@
     return out;
   }
   function save(sub) {
+    if (!invite) return Promise.reject(new Error("noinvite"));
     return fetch("/api/subscribe", { method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ invite: invite, subscription: sub }) }).then(function (r) { if (!r.ok) throw new Error("save"); set("fsy-push-for", invite); });
   }
+  function testPush(sub) {
+    return fetch("/api/test-push", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ subscription: sub }) }).then(function (r) { return r.json(); });
+  }
+  function onBar(msg) {
+    // Reminders are on: offer a test so he can see one arrive.
+    bar(msg, true, "Send a test", function () {
+      var go = document.getElementById("remindGo"), txt = document.getElementById("remindText");
+      go.disabled = true;
+      reg.pushManager.getSubscription().then(function (sub) {
+        if (!sub) throw new Error("nosub");
+        return testPush(sub);
+      }).then(function (r) {
+        txt.textContent = r && r.sent ? "Sent. It should pop up in a few seconds. Lock your phone to see it." : "Test didn't go through: " + ((r && r.error) || "try again") ;
+        go.hidden = true;
+      }).catch(function () { txt.textContent = "Test didn't go through. Turn reminders off and on in Settings, then try again."; go.hidden = true; });
+    });
+  }
   function turnOn() {
     var txt = document.getElementById("remindText"), go = document.getElementById("remindGo");
+    if (!invite) { txt.textContent = "Tap your name first (from your quorum's join link), then turn on reminders."; go.hidden = true; return; }
     go.disabled = true;
     Notification.requestPermission().then(function (p) {
       if (p !== "granted") { txt.textContent = "Reminders are off. You can turn them on later in your phone's settings."; go.hidden = true; set("fsy-remind-asked", "1"); return; }
       return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(PUSH_KEY) })
-        .then(save).then(function () { txt.textContent = "Reminders are on. You'll only get one if you haven't checked in."; go.hidden = true; set("fsy-remind-asked", "1");
-          setTimeout(function () { document.getElementById("remind").hidden = true; }, 4000); });
+        .then(save).then(function () { set("fsy-remind-asked", "1"); onBar("Reminders are on: 12, 4 and 8 on days you haven't checked in."); });
     }).catch(function () { txt.textContent = "That didn't work. Try again in a minute."; go.disabled = false; });
   }
 
   // The app's "Get reminders" button lands here. The phone only allows the permission prompt from a tap on this page,
   // so we show a bar with our own button (or the right instructions for this phone).
-  function bar(text, button) {
+  function bar(text, button, label, fn) {
     var b = document.getElementById("remind"), go = document.getElementById("remindGo");
     document.getElementById("remindText").textContent = text;
-    go.hidden = !button; go.disabled = false;
-    if (button) go.onclick = turnOn;
+    go.hidden = !button; go.disabled = false; go.textContent = label || "Turn on";
+    if (button) go.onclick = fn || turnOn;
     document.getElementById("remindX").onclick = function () { b.hidden = true; };
     document.getElementById("tip").hidden = true;
     b.hidden = false;
@@ -165,8 +184,9 @@
     }
     reg.pushManager.getSubscription().then(function (sub) {
       if (sub && Notification.permission === "granted") {
-        save(sub).catch(function () {});
-        bar("Reminders are on. You'll only get one on days you haven't checked in.", false);
+        if (!invite) { bar("Tap your name first (from your quorum's join link) so reminders know who you are.", false); return; }
+        save(sub).then(function () { onBar("Reminders are on: 12, 4 and 8 on days you haven't checked in."); })
+          .catch(function () { bar("Couldn't reach the server. Try again in a minute.", false); });
       } else {
         bar("Get a reminder on days you haven't checked in yet?", true);
       }
@@ -181,7 +201,7 @@
       if (!invite) return;
       return reg.pushManager.getSubscription().then(function (sub) {
         if (sub && Notification.permission === "granted") {
-          if (get("fsy-push-for") !== invite) save(sub).catch(function () {});   // he got a new invite link: move reminders to it
+          save(sub).catch(function () {});   // re-save every time the app opens, so reminders never quietly drop off
           return;
         }
         var askable = Notification.permission === "default" && (standalone || !ios) && !get("fsy-remind-asked");

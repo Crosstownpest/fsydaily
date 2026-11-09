@@ -2,11 +2,12 @@
 import { getStore } from "@netlify/blobs";
 import webpush from "web-push";
 
+const ALL = [0, 1, 2, 3, 4, 5, 6];
 const MESSAGES = {
-  sundayMorning: { hour: 8, days: [0], title: "Today's the discussion", body: "Check in with one thing you're bringing to class." },
-  afternoon: { hour: 16, days: [1, 2, 3, 4, 5, 6], title: "Today's FSY reading is waiting", body: "Two minutes. Read it, think about it, check in." },
+  noon: { hour: 12, days: ALL, title: "Today's FSY reading is waiting", body: "Two minutes. Read it, think about it, check in." },
+  afternoon: { hour: 16, days: ALL, title: "Still time for today's check-in", body: "Read today's scripture and share one thought." },
   saturdayNight: { hour: 20, days: [6], title: "Tomorrow's lesson: bring one thing", body: "Do tonight's reading so you're ready for Sunday." },
-  evening: { hour: 20, days: [1, 2, 3, 4, 5], title: "Last call for today's check-in", body: "Still time to read today's scripture before bed." }
+  evening: { hour: 20, days: [0, 1, 2, 3, 4, 5], title: "Last call for today's check-in", body: "Still time to read today's scripture before bed." }
 };
 
 function pick(hour, dow) {
