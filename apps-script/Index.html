@@ -83,6 +83,13 @@ textarea{width:100%;min-height:64px;border:1px solid var(--line);border-radius:8
 .done{padding:14px 16px;border-radius:10px;background:var(--good-soft);color:var(--good);font-weight:600}
 .small{font-size:.85rem;color:var(--muted);margin:0}
 .err{color:#c0392b;font-size:.9rem;margin:0}
+.promo{background:#1d3047;color:#eef2f6;border-radius:14px;padding:14px 16px;margin:12px 0}
+.promo h4{margin:0 0 6px;font-size:1.05rem;color:#e0ad48}
+.promo p{margin:6px 0;font-size:.93rem;line-height:1.45}
+.promo b{color:#fff}
+.promo .row2{margin-top:10px}
+.promo .confirm{width:auto;margin:0}
+.promo .linkbtn{color:#aab6c3}
 .info{background:#fff6e0;border:1px solid #f0d58f;color:#5a4410;border-radius:10px;padding:10px 12px;font-size:.95rem;margin:0}
 .loading{padding:40px 20px;text-align:center;color:var(--muted)}
 .foot-links{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;padding:0 16px 32px;font-size:.88rem}
@@ -137,6 +144,7 @@ textarea{width:100%;min-height:64px;border:1px solid var(--line);border-radius:8
   </div>
 </header>
 <main class="wrap">
+  <div id="promo"></div>
   <div id="whoami"></div>
   <div class="nav">
     <button id="prev">‹ Prev</button>
@@ -302,7 +310,26 @@ function renderCard(){
   };
 }
 
+// Short-lived announcement at the top of the reading. Shows through PROMO_UNTIL (ward's date) until dismissed.
+var PROMO_UNTIL="2026-11-10", PROMO_KEY="fsy-promo-reminders";
+function renderPromo(){
+  var box=document.getElementById("promo");if(!box)return;box.innerHTML="";
+  if(!D||D.today>PROMO_UNTIL||ls(PROMO_KEY))return;
+  var p=el("div","promo");
+  p.appendChild(el("h4",null,"New: reminders at 12, 4 and 8"));
+  p.appendChild(el("p",null,"You only get one on days you haven't checked in yet."));
+  var ip=el("p");ip.innerHTML="<b>iPhone:</b> Open fsydaily.com in <b>Safari</b>. Tap <b>Share</b>, then <b>Add to Home Screen</b>. Open FSY Prep from your home screen, tap <b>Get reminders</b>, then <b>Turn on</b> and <b>Allow</b>.";p.appendChild(ip);
+  var an=el("p");an.innerHTML="<b>Android:</b> Open fsydaily.com in <b>Chrome</b>. Tap <b>Get reminders</b>, then <b>Turn on</b> and <b>Allow</b>. Optional: tap ⋮ then <b>Add to Home screen</b>.";p.appendChild(an);
+  var row=el("div","row2");
+  var go=el("button","confirm","Get reminders");go.type="button";
+  go.onclick=function(){try{window.top.postMessage({fsy:{askReminders:true}},"*");}catch(e){}};
+  var x=el("button","linkbtn","Got it, hide this");x.type="button";
+  x.onclick=function(){ls(PROMO_KEY,"1");box.innerHTML="";};
+  row.appendChild(go);row.appendChild(x);p.appendChild(row);
+  box.appendChild(p);
+}
 function renderAll(){
+  renderPromo();
   document.getElementById("eyebrow").textContent = D.ward && !D.ward.isDefault ? D.ward.name+" · Daily Prep" : "Aaronic Priesthood · Daily Prep";
   if(INVITE&&D.me){me=D.me;}
   if(!me&&NAME_PARAM&&D.roster.indexOf(NAME_PARAM)>=0){me=NAME_PARAM;ls(nameKey(),me);}
